@@ -307,7 +307,6 @@ import time
 prompt = "#{String.replace(config.prompt, "\"", "\\\"")}"
 width = #{config.width}
 height = #{config.height}
-seed = #{config.seed}
 num_steps = #{config.num_steps}
 guidance_scale = #{config.guidance_scale}
 output_format = "#{config.output_format}"
@@ -316,10 +315,14 @@ output_dir = Path("output")
 output_dir.mkdir(exist_ok=True)
 
 generator = torch.Generator(device=device)
-if seed == 0:
-    seed = generator.seed()
+if #{config.seed} == 0:
+    # Use random seed
+    generator.manual_seed(torch.randint(0, torch.iinfo(torch.int64).max, (1,)).item())
+    seed = "random"
 else:
-    generator.manual_seed(seed)
+    # Use specified seed
+    generator.manual_seed(#{config.seed})
+    seed = str(#{config.seed})
 
 # Generate image
 print(f"[INFO] Starting generation: {prompt[:50]}...")
