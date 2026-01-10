@@ -115,7 +115,7 @@ cockroach.out
 cockroach-certs/
 
 # CockroachDB binaries (large files)
-tools/cockroach-v*.windows-*.amd64/
+tools/cockroach-v22.1.22.windows-6.2-amd64/
 tools/cockroach.zip
 
 # Node modules
