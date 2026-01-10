@@ -1,5 +1,5 @@
-defmodule LivebookNx.Repo do
+defmodule Forge.Repo do
   use Ecto.Repo,
-    otp_app: :livebook_nx,
+    otp_app: :forge,
     adapter: Ecto.Adapters.SQLite3
 end

@@ -37,7 +37,7 @@ defmodule Mix.Tasks.Qwen3vl do
           use_4bit: if(opts[:full_precision], do: false, else: opts[:use_4bit] || true)
         ]
 
-        case LivebookNx.Server.run_qwen3vl_inference(image_path, [prompt: prompt] ++ options) do
+        case Forge.Server.run_qwen3vl_inference(image_path, [prompt: prompt] ++ options) do
           {:ok, result} ->
             Mix.shell().info("Qwen3-VL inference completed:")
             Mix.shell().info(result)

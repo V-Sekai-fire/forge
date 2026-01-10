@@ -1,4 +1,4 @@
-defmodule LivebookNx.Qwen3VL do
+defmodule Forge.Qwen3VL do
   @moduledoc """
   Qwen3-VL Vision-Language Inference Module
   """
@@ -6,7 +6,7 @@ defmodule LivebookNx.Qwen3VL do
   require Logger
 
   # Load shared utilities
-  Code.eval_file("lib/livebook_nx/shared_utils.exs")
+  Code.eval_file("lib/forge/shared_utils.exs")
 
   @model_id "huihui-ai/Huihui-Qwen3-VL-4B-Instruct-abliterated"
   @weights_dir "pretrained_weights/Huihui-Qwen3-VL-4B-Instruct-abliterated"
@@ -198,7 +198,7 @@ print(response)
     case validate_config(struct(__MODULE__, config)) do
       :ok ->
         %{config: config}
-        |> LivebookNx.Qwen3VL.Worker.new()
+        |> Forge.Qwen3VL.Worker.new()
         |> Oban.insert()
       {:error, reason} ->
         {:error, reason}

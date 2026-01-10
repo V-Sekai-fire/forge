@@ -1,4 +1,4 @@
-defmodule LivebookNxTest do
+defmodule ForgeTest do
   use ExUnit.Case
 
   test "application starts" do

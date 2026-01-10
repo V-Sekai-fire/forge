@@ -1,17 +1,17 @@
-defmodule LivebookNx.Server do
+defmodule Forge.Server do
   @moduledoc """
-  GenServer for managing LivebookNx AI inference operations.
+  GenServer for managing Forge AI inference operations.
   """
 
   use GenServer
   require Logger
 
-  alias LivebookNx.{Qwen3VL, ZImage}
+  alias Forge.{Qwen3VL, ZImage}
 
   # Client API
 
   @doc """
-  Starts the LivebookNx server.
+  Starts the Forge server.
   """
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -56,7 +56,7 @@ defmodule LivebookNx.Server do
 
   @impl true
   def init(_opts) do
-    Logger.info("Starting LivebookNx.Server")
+    Logger.info("Starting Forge.Server")
 
     state = %{
       jobs_completed: 0,
@@ -70,7 +70,7 @@ defmodule LivebookNx.Server do
   def handle_call({:run_qwen3vl, image_path, opts}, _from, state) do
     Logger.info("Running Qwen3-VL inference", %{image_path: image_path})
 
-    config = LivebookNx.Qwen3VL.new([
+    config = Forge.Qwen3VL.new([
       image_path: image_path,
       prompt: opts[:prompt],
       max_tokens: opts[:max_tokens],
@@ -81,7 +81,7 @@ defmodule LivebookNx.Server do
       use_4bit: opts[:use_4bit]
     ])
 
-    result = LivebookNx.Qwen3VL.run(config)
+    result = Forge.Qwen3VL.run(config)
     new_state = update_job_stats(state, result)
 
     Logger.info("Qwen3-VL inference completed", %{result: inspect(result)})

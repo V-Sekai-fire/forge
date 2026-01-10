@@ -1,19 +1,19 @@
 import Config
 
 # Configure the main application
-config :livebook_nx,
-  ecto_repos: [LivebookNx.Repo]
+config :forge,
+  ecto_repos: [Forge.Repo]
 
 # Configure Oban
-config :livebook_nx, Oban,
-  repo: LivebookNx.Repo,
+config :forge, Oban,
+  repo: Forge.Repo,
   plugins: [Oban.Plugins.Pruner],
   queues: [default: 5, ml: 8],
   notifier: Oban.Notifiers.Isolated
 
 # Database (SQLite for simple embedded database)
-config :livebook_nx, LivebookNx.Repo,
-  database: System.get_env("DATABASE_PATH", "livebook_nx.db"),
+config :forge, Forge.Repo,
+  database: System.get_env("DATABASE_PATH", "forge.db"),
   migration_lock: nil
 
 # OpenTelemetry

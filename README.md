@@ -1,18 +1,18 @@
-# Livebook Nx
+# Forge
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Elixir](https://img.shields.io/badge/Elixir-1.15+-purple)](https://elixir-lang.org/)
 
-A friendly Elixir-based AI inference platform featuring Qwen3-VL vision-language models, with optional distributed storage and background job processing.
+A comprehensive AI inference platform featuring multi-modal AI models including Z-Image-Turbo image generation and Qwen3-VL vision-language models, with SQLite-backed job processing.
 
 ## ✨ Features
 
+- **Image Generation**: Z-Image-Turbo for high-speed text-to-image creation
 - **Vision-Language AI**: Qwen3-VL model for image understanding and description
-- **Simple Setup**: Get started with just `mix deps.get && mix compile`
-- **Background Processing**: Optional job queues for long-running tasks
-- **Flexible Storage**: Choose between local files or distributed databases
-- **Third-Party Tools**: Integrated mesh processing, text-to-speech, and image generation
-- **Production Ready**: Docker, Kubernetes, and cloud deployment support
+- **SQLite Database**: Embedded database with job queue persistence
+- **Async Processing**: Oban job system for background task execution
+- **Multi-Modal Pipeline**: End-to-end AI workflows combining generation and analysis
+- **Production Ready**: Containerized deployment with optimized ML performance
 
 ## 🚀 Quick Start
 
@@ -34,11 +34,8 @@ mix qwen3vl image.jpg "What do you see?"
 mix deps.get
 mix compile
 
-# Optional: Setup database for job queuing
-mix run tools/generate_certs.exs  # Generate certificates
-mix crdb.start                    # Start CockroachDB
-mix ecto.migrate                  # Setup database tables
-mix run priv/repo/seeds.exs       # Load initial data
+# Create SQLite database and run migrations
+mix ecto.setup                   # Auto-creates SQLite DB and tables
 ```
 
 ### Run Inference
@@ -47,44 +44,44 @@ mix run priv/repo/seeds.exs       # Load initial data
 # Describe an image
 mix qwen3vl image.jpg "What do you see?"
 
+# Generate an image
+mix zimage "a beautiful sunset over mountains"
+
 # Queue for background processing (requires database)
-{:ok, job} = LivebookNx.Qwen3VL.queue_inference("image.jpg", "Describe this image")
+{:ok, job} = Forge.Qwen3VL.queue_inference("image.jpg", "Describe this image")
 ```
 
-# With custom options
-
-mix qwen3vl photo.png "Analyze in detail" --max-tokens 200 --temperature 0.8
-
-````
-
-## 🗄️ Database Configuration (Optional)
-
-Livebook Nx can work without a database for basic inference tasks. For production use with job queuing, it supports CockroachDB with TLS encryption.
-
-### Connection Details
-
-When using the database, it connects with:
-- **Host**: localhost:26257
-- **Database**: livebook_nx_dev
-- **User**: root
-- **SSL**: Enabled with automatically generated certificates
-
-### Database Management
+### Additional Command Options
 
 ```bash
-# Start CockroachDB
-mix crdb.start
+# With custom options
+mix qwen3vl photo.png "Analyze in detail" --max-tokens 200 --temperature 0.8
+mix zimage "fantasy landscape" --width 1024 --height 512 --seed 42
+```
 
-# Stop CockroachDB
-mix crdb.stop
+## 🗄️ Database Configuration
 
-# View CockroachDB Web UI
-open https://localhost:8080
-````
+Forge uses SQLite as an embedded database for job queue persistence and background task management. The database is automatically created and managed by the application.
 
-### Certificate Management
+### Database Features
 
-TLS certificates are automatically generated in `cockroach-certs/` for secure connections.
+- **Embedded SQLite**: File-based database, no external dependencies
+- **Job Persistence**: Oban queues store background AI jobs
+- **Migration Support**: Automatic schema creation and updates
+- **Concurrent Access**: SQLite WAL mode for better performance
+
+### Database Setup
+
+```bash
+# Create database and run all migrations
+mix ecto.setup
+
+# Run migrations only
+mix ecto.migrate
+
+# View job queue status
+mix oban.tel
+```
 
 ## �📚 Documentation
 
@@ -96,15 +93,15 @@ TLS certificates are automatically generated in `cockroach-certs/` for secure co
 ## 🏗️ Architecture
 
 ```
-Livebook Nx
+Forge
 ├── Core Application (Elixir)
-│   ├── Qwen3-VL Inference Engine
-│   ├── Job Queue (Oban - optional)
-│   └── Database Layer (Ecto - optional)
-├── Storage Options
-│   ├── Local Files (default)
-│   ├── CockroachDB (optional)
-│   └── SeaweedFS (optional)
+│   ├── Z-Image Inference Engine
+│   ├── Qwen3-VL Vision-Language Engine
+│   ├── Job Queue System (Oban)
+│   └── SQLite Database (Ecto)
+├── AI Models
+│   ├── Z-Image-Turbo (Image Generation)
+│   └── Qwen3-VL (Vision Analysis)
 └── Third-Party Tools
     ├── Mesh Processing
     ├── Audio Synthesis
@@ -112,15 +109,15 @@ Livebook Nx
     └── Character Rigging
 ```
 
-**Note**: Database and distributed storage are optional. You can use Livebook Nx for basic inference without any database setup.
+**Note**: Database is embedded SQLite. Third-party tools are optional integrations.
 
 ## 🐳 Deployment
 
 ### Docker
 
 ```bash
-docker build -t livebook-nx .
-docker run -p 4000:4000 livebook-nx
+docker build -t forge .
+docker run -p 4000:4000 forge
 ```
 
 ### Docker Compose
@@ -142,5 +139,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙋 Support
 
 - 📖 [Documentation](docs/)
-- 🐛 [Issues](https://github.com/your-org/livebook-nx/issues)
-- 💬 [Discussions](https://github.com/your-org/livebook-nx/discussions)
+- 🐛 [Issues](https://github.com/your-org/forge/issues)
+- 💬 [Discussions](https://github.com/your-org/forge/discussions)

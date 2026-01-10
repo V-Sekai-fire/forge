@@ -1,4 +1,4 @@
-defmodule LivebookNx.Qwen3VL.Worker do
+defmodule Forge.Qwen3VL.Worker do
   @moduledoc """
   Oban worker for asynchronous Qwen3-VL vision-language inference.
   """
@@ -12,7 +12,7 @@ defmodule LivebookNx.Qwen3VL.Worker do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"config" => config_params}}) do
-    config = struct(LivebookNx.Qwen3VL, config_params)
+    config = struct(Forge.Qwen3VL, config_params)
 
     Logger.info("Starting Qwen3-VL inference job", %{
       job_id: inspect(self()),
@@ -21,7 +21,7 @@ defmodule LivebookNx.Qwen3VL.Worker do
       max_tokens: config.max_tokens
     })
 
-    case LivebookNx.Qwen3VL.run(config) do
+    case Forge.Qwen3VL.run(config) do
       {:ok, result} ->
         Logger.info("Qwen3-VL inference completed successfully", %{job_id: inspect(self())})
         {:ok, result}

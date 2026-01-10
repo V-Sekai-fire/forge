@@ -1,4 +1,4 @@
-defmodule LivebookNx.ZImage do
+defmodule Forge.ZImage do
   @moduledoc """
   Z-Image-Turbo image generation module.
 
@@ -133,7 +133,7 @@ defmodule LivebookNx.ZImage do
     case validate_config(struct(__MODULE__, config)) do
       :ok ->
         %{config: config}
-        |> LivebookNx.ZImage.Worker.new()
+        |> Forge.ZImage.Worker.new()
         |> Oban.insert()
       {:error, reason} ->
         {:error, reason}
@@ -160,7 +160,7 @@ defmodule LivebookNx.ZImage do
 
   defp do_generate(%__MODULE__{} = config) do
     # Validate and sanitize inputs for security
-    with {:ok, safe_prompt} <- {:ok, LivebookNx.Security.sanitize_prompt(config.prompt)},
+    with {:ok, safe_prompt} <- {:ok, Forge.Security.sanitize_prompt(config.prompt)},
          {:ok, output_path} <- create_secure_output_path(config.output_format) do
 
       # Initialize Python environment if not already initialized
@@ -363,7 +363,7 @@ print(f"OUTPUT_PATH:{output_path}")
 
       filename = "zimage_#{timestamp}.#{safe_format}"
 
-      case LivebookNx.Security.validate_filename(filename) do
+      case Forge.Security.validate_filename(filename) do
         {:ok, validated_filename} ->
           output_path = Path.join(output_dir, validated_filename)
           {:ok, output_path}
