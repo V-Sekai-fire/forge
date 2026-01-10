@@ -18,10 +18,10 @@ from .raw_data import RawData
 
 def load(filepath: str):
     old_objs = set(bpy.context.scene.objects)
-    
+
     if not os.path.exists(filepath):
         raise ValueError(f'File {filepath} does not exist !')
-    
+
     try:
         if filepath.endswith(".vrm"):
             # Install and enable VRM addon
@@ -29,7 +29,7 @@ def load(filepath: str):
             # Check if addon is already installed and enabled
             vrm_addon_enabled = False
             vrm_module_name = None
-            
+
             # Check common VRM addon module names
             for addon in bpy.context.preferences.addons:
                 if 'vrm' in addon.module.lower():
@@ -37,7 +37,7 @@ def load(filepath: str):
                     if addon.enabled:
                         vrm_addon_enabled = True
                         break
-            
+
             if not vrm_addon_enabled:
                 # Try to enable if installed but not enabled
                 if vrm_module_name:
@@ -47,7 +47,7 @@ def load(filepath: str):
                         vrm_addon_enabled = True
                     except Exception as e:
                         print(f"Failed to enable VRM addon: {e}")
-                
+
                 # If not installed, try to install from Extensions Platform (Blender 4.2+)
                 if not vrm_addon_enabled:
                     try:
@@ -69,11 +69,11 @@ def load(filepath: str):
                         print("  2. Click 'Install from Extensions Platform' or download from:")
                         print("     https://extensions.blender.org/add-ons/vrm/")
                         raise RuntimeError("VRM addon is not installed. Please install it manually from Blender's Extensions Platform.")
-            
+
             # Verify addon is enabled before importing
             if not vrm_addon_enabled:
                 raise RuntimeError("VRM addon is not enabled. Please enable it in Edit > Preferences > Add-ons")
-            
+
             bpy.ops.import_scene.vrm(
                 filepath=filepath,
                 use_addon_preferences=True,
@@ -121,7 +121,7 @@ def load(filepath: str):
     if len(armature)>1:
         raise ValueError(f"multiple armatures found")
     armature = armature[0]
-    
+
     armature.select_set(True)
     bpy.context.view_layer.objects.active = armature
     bpy.ops.object.mode_set(mode='EDIT')
@@ -130,7 +130,7 @@ def load(filepath: str):
 
     bpy.ops.object.mode_set(mode='OBJECT')
     armature.select_set(False)
-    
+
     bpy.ops.object.select_all(action='DESELECT')
     return armature
 
@@ -141,7 +141,7 @@ def clean_bpy():
         bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
     except Exception as e:
         print(f"Warning: Could not purge orphans: {e}")
-        
+
     # Then remove all data by type
     data_types = [
         bpy.data.actions,
@@ -158,7 +158,7 @@ def clean_bpy():
         bpy.data.worlds,
         bpy.data.node_groups
     ]
-    
+
     for data_collection in data_types:
         try:
             for item in data_collection:
@@ -168,7 +168,7 @@ def clean_bpy():
                     print(f"Warning: Could not remove {item.name} from {data_collection}: {e}")
         except Exception as e:
             print(f"Warning: Error processing {data_collection}: {e}")
-            
+
     # Force garbage collection to free memory
     import gc
     gc.collect()
@@ -181,7 +181,7 @@ def get_arranged_bones(armature):
         root = root.parent
     Q = [root]
     rot = np.array(matrix_world)[:3, :3]
-    
+
     # dfs and sort
     while len(Q) != 0:
         b = Q.pop(0)
@@ -200,13 +200,13 @@ def process_mesh(arranged_bones=None):
     for v in bpy.data.objects:
         if v.type == 'MESH':
             meshes.append(v)
-    
+
     if arranged_bones is not None:
         index = {}
         # update index first
         for (id, pbone) in enumerate(arranged_bones):
             index[pbone.name] = id
-    
+
     _dict_mesh = {}
     _dict_skin = {}
     if arranged_bones is not None:
@@ -228,14 +228,14 @@ def process_mesh(arranged_bones=None):
         obj_verts = obj.data.vertices
         faces = []
         normals = []
-        
+
         for v in obj_verts:
             vertex_normal[v.index] = rot @ np.array(v.normal) # be careful !
             vv = rot @ v.co
             vv = np.array(vv) + matrix_world_bias
             vertex[0:3, v.index] = vv
             vertex[3][v.index] = 1 # affine coordinate
-        
+
         for polygon in obj.data.polygons:
             edges = polygon.edge_keys
             nodes = []
@@ -267,7 +267,7 @@ def process_mesh(arranged_bones=None):
             for (second, third) in zip(loop[1:], loop[2:]):
                 faces.append((first + 1, second + 1, third + 1)) # the cursed +1
                 normals.append(rot @ normal) # and the cursed normal of BLENDER
-        
+
         obj_group_names = [g.name for g in obj.vertex_groups]
         if arranged_bones is not None:
             for bone in arranged_bones:
@@ -284,7 +284,7 @@ def process_mesh(arranged_bones=None):
                     vertex[0:3, v.index] = vv
                     vertex[3][v.index] = 1 # affine coordinate
                     skin_weight[v.index, index[bone.name]] = w
-        
+
         correct_faces = []
         for (i, face) in enumerate(faces):
             normal = normals[i]
@@ -308,9 +308,9 @@ def process_mesh(arranged_bones=None):
                 _dict_skin[obj.name] = {
                     'skin': skin_weight,
                 }
-    
+
     vertex = np.concatenate([_dict_mesh[name]['vertex'] for name in _dict_mesh], axis=1)[:3, :].transpose()
-    
+
     total_faces = 0
     now_bias = 0
     for name in _dict_mesh:
@@ -340,7 +340,7 @@ def process_armature(
 
     for (id, pbone) in enumerate(arranged_bones):
         index[pbone.name] = id
-    
+
     root = armature.pose.bones[0]
     while root.parent is not None:
         root = root.parent
@@ -348,11 +348,11 @@ def process_armature(
     scale_inv = np.linalg.inv(np.diag(matrix_world.to_scale()))
     rot = m[:3, :3]
     bias = m[:3, 3]
-    
+
     s = []
     bpy.ops.object.editmode_toggle()
     edit_bones = armature.data.edit_bones
-    
+
     J = len(arranged_bones)
     joints = np.zeros((J, 3), dtype=np.float32)
     tails = np.zeros((J, 3), dtype=np.float32)
@@ -371,7 +371,7 @@ def process_armature(
         s.append(head)
         edit_bone = edit_bones.get(name)
         tail = rot @ np.array(edit_bone.tail) + bias
-        
+
         name_to_id[name] = id
         joints[id] = head
         tails[id] = tail
@@ -381,7 +381,7 @@ def process_armature(
         matrix_local[:3, :3] = scale_inv @ matrix_local[:3, :3]
         matrix_local_stack[id] = matrix_local
     bpy.ops.object.editmode_toggle()
-    
+
     return joints, tails, parents, names, matrix_local_stack
 
 def save_raw_data(
@@ -402,7 +402,7 @@ def save_raw_data(
     if faces.shape[0] > target_count:
         vertices, faces = fast_simplification.simplify(vertices, faces, target_count=target_count)
     mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
-    
+
     new_vertices = np.array(mesh.vertices, dtype=np.float32)
     new_vertex_normals = np.array(mesh.vertex_normals, dtype=np.float32)
     new_faces = np.array(mesh.faces, dtype=np.int64)
@@ -419,7 +419,7 @@ def save_raw_data(
         new_skin = new_skin[indices]
     else:
         new_skin = None
-    
+
     raw_data = RawData(
         vertices=new_vertices,
         vertex_normals=new_vertex_normals,
@@ -453,7 +453,7 @@ def extract_builtin(
     end = gap * (id + 1)
     if id+1==num_runs:
         end = num_files
-    
+
     files = sorted(files)
     if end!=-1:
         files = files[:end]
@@ -466,18 +466,18 @@ def extract_builtin(
         new_entry(input_file)
         try:
             print(f"Now processing {input_file}...")
-            
+
             armature = load(input_file)
-            
+
             print('save to:', output_dir)
             os.makedirs(output_dir, exist_ok=True)
-            
+
             if armature is not None:
                 arranged_bones = get_arranged_bones(armature)
             else:
                 arranged_bones = None
             vertices, faces, skin = process_mesh(arranged_bones)
-            
+
             if armature is not None:
                 joints, tails, parents, names, matrix_local = process_armature(armature, arranged_bones)
             else:
@@ -486,7 +486,7 @@ def extract_builtin(
                 parents = None
                 names = None
                 matrix_local = None
-            
+
             save_file = os.path.join(output_dir, 'raw_data.npz')
             save_raw_data(
                 path=save_file,
@@ -500,7 +500,7 @@ def extract_builtin(
                 matrix_local=matrix_local,
                 target_count=target_count,
             )
-            
+
             tot += 1
 
         except ValueError as e:
@@ -542,7 +542,7 @@ def get_files(
     force_override: bool=False,
     warning: bool=True,
 ) -> List[Tuple[str, str]]:
-    
+
     files = [] # (input_file, output_dir)
     if inputs is not None: # specified input file(s)
         vis = {}
@@ -567,10 +567,10 @@ def get_files(
                     file_name = file.removeprefix("./")
                     # remove suffix
                     file_name = '.'.join(file_name.split('.')[:-1])
-                    
+
                     output_dir = os.path.join(output_dataset_dir, os.path.relpath(root, input_dataset_dir), file_name)
                     raw_data_npz = os.path.join(output_dir, data_name)
-                    
+
                     # Check if all required files exist
                     if not force_override and os.path.exists(raw_data_npz):
                         continue
@@ -598,21 +598,21 @@ def parse():
 
 if __name__ == "__main__":
     args = parse()
-    
+
     config = Box(yaml.safe_load(open(args.config, "r")))
-    
+
     num_runs        = args.num_runs
     id              = args.id
     timestamp       = args.time
     require_suffix  = args.require_suffix.split(',')
     force_override  = args.force_override
     target_count    = args.faces_target_count
-    
+
     if args.input_dir:
         config.input_dataset_dir = args.input_dir
     if args.output_dir:
         config.output_dataset_dir = args.output_dir
-    
+
     assert config.input_dataset_dir is not None or args.input is None, 'you cannot specify both input and input_dir'
 
     files = get_files(

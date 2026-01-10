@@ -211,7 +211,7 @@ class Trainer(TrainerBase):
                     self.logger.info(
                         f"iter: {self.epoch}, total_loss: {loss.item()}, loss_1: {loss_dict['instance_loss_1'].item()}, loss_2: {loss_dict['instance_loss_2'].item()}, loss_3: {loss_dict['instance_loss_3'].item()}"
                         )
-                
+
                 # !!! optimizer
                 self.optimizer.zero_grad()
                 if self.cfg.enable_amp:
@@ -242,7 +242,7 @@ class Trainer(TrainerBase):
                     )
                     os.replace(filename + ".tmp", filename)
             self.eval()
-    
+
     def eval(self):
         # val_data = build_dataset(self.cfg.data.val)
         self.logger.info("=> Loading checkpoint & weight ...")
@@ -256,7 +256,7 @@ class Trainer(TrainerBase):
         else:
             self.logger.info(f"No weight found at: {self.cfg.weight}")
             self.cfg.weight = "last"
-    
+
         self.model.eval()
         save_root = os.path.join(self.cfg.save_path, "vis_pcd", os.path.splitext(os.path.basename(self.cfg.weight))[0])
         os.makedirs(save_root, exist_ok=True)
@@ -304,7 +304,7 @@ class Trainer(TrainerBase):
                     indices = indices[:, 0].cpu().numpy()
                     labels[invalid_label_mask] = labels[~invalid_label_mask][indices]
 
-            
+
             # np.save(os.path.join(group_save_root, f"{str(scale)}.npy"), labels)
             save_path = os.path.join(save_root, f"{str(scale)}.ply")
             coord = input_dict["obj"]["coord"].cpu().numpy()
@@ -364,8 +364,8 @@ class Trainer(TrainerBase):
                 # Save the new mesh
                 mesh_save_path = os.path.join(save_root, f"mesh_{str(scale)}.ply")
                 mesh.export(mesh_save_path)
-                
-    
+
+
     def _get_quantile_func(self, scales: torch.Tensor, distribution="normal"):
         """
         Use 3D scale statistics to normalize scales -- use quantile transformer.

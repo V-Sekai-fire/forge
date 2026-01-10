@@ -86,7 +86,7 @@ def get_ray_directions(W, H, fx, fy, cx, cy, use_pixel_centers=True):
     )
     directions = np.stack(
         [(i - cx) / fx, -(j - cy) / fy, -np.ones_like(i)], -1
-    ) 
+    )
 
     return directions
 
@@ -94,7 +94,7 @@ def get_ray_directions(W, H, fx, fy, cx, cy, use_pixel_centers=True):
 def gen_pcd(depth, c2w_opengl, camera_angle_x):
 
     h, w = depth.shape
-    
+
     depth_valid = depth < 65500.0
     depth = depth[depth_valid]
     focal = (
@@ -141,7 +141,7 @@ def vis_pcd_feat(coord, point_feat, save_path):
             t0 = X - self.mean_.unsqueeze(0)
             projected = t0 @ self.components_.T
             return projected
-        
+
     fit_pca = TorchPCA(n_components=3).fit(point_feat)
     x_red = fit_pca.transform(point_feat)
     if isinstance(x_red, np.ndarray):

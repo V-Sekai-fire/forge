@@ -12,34 +12,34 @@ from ..data.augment import Augment
 class ModelInput():
     # tokens for ar input
     tokens: Union[ndarray, None]=None
-    
+
     # pad token
     pad: Union[int, None]=None
-    
+
     # vertices(usually sampled), (N, 3)
     vertices: Union[ndarray, None]=None
-    
+
     # normals(usually sampled), (N, 3)
     normals: Union[ndarray, None]=None
-    
+
     # joints
     joints: Union[ndarray, None]=None
-    
+
     # tails
     tails: Union[ndarray, None]=None
-    
+
     # assets for debug usage
     asset: Union[Asset, None]=None
-    
+
     # augments asset used
     augments: Union[Augment, None]=None
 
 class ModelSpec(pl.LightningModule, ABC):
-    
+
     @abstractmethod
     def __init__(self):
         super().__init__()
-    
+
     @final
     def _process_fn(self, batch: List[ModelInput]) -> List[Dict]:
         '''
@@ -47,25 +47,25 @@ class ModelSpec(pl.LightningModule, ABC):
             cls: List[str]
 
             path: List[str]
-            
+
             data_name: List[str]
-            
+
             joints: shape (B, J, 3), J==max_bones
-            
+
             tails: shape (B, J, 3)
-            
+
             parents: shape (B, J), -1 represents no parent(should always appear at 0-th position)
-            
+
             num_bones: shape (B), the true number of bones
-            
+
             skin: shape (B, J), padding value==0.
-            
+
             vertices: (B, N, 3)
-            
+
             normals: (B, N, 3)
-            
+
             matrix_local: (B, J, 4, 4), current matrix_local
-            
+
             pose_matrix: (B, J, 4, 4), for motion loss calculation
         '''
         n_batch = self.process_fn(batch)
@@ -125,7 +125,7 @@ class ModelSpec(pl.LightningModule, ABC):
             n_batch[id]['origin_faces'] = np.pad(b.asset.faces, ((0, max_faces-b.asset.F), (0, 0)))
             n_batch[id]['origin_face_normals'] = np.pad(b.asset.face_normals, ((0, max_faces-b.asset.F), (0, 0)))
         return n_batch
-    
+
     @abstractmethod
     def process_fn(self, batch: List[ModelInput]) -> Dict:
         '''

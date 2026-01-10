@@ -28,7 +28,7 @@ class VocabSwitchingLogitsProcessor(LogitsProcessor):
         return scores
 
 class UniRigAR(ModelSpec):
-    
+
     def process_fn(self, batch: List[ModelInput]) -> List[Dict]:
         if batch[0].joints is None: # predict
             return [{} for _ in range(len(batch))]
@@ -40,12 +40,12 @@ class UniRigAR(ModelSpec):
             'attention_mask': np.pad(torch.ones(b.tokens.shape[0]), ((0, max_length - b.tokens.shape[0])), 'constant', constant_values=0.),
         } for b in batch]
         return res
-    
+
     def __init__(self, llm, mesh_encoder, **kwargs):
         super().__init__()
         self.tokenizer: TokenizerSpec = kwargs.get('tokenizer')
         self.vocab_size = self.tokenizer.vocab_size
-        
+
         _d = llm.copy()
         _d['vocab_size'] = self.tokenizer.vocab_size
         # Remove flash_attention_2 if present - use default attention instead
@@ -60,11 +60,11 @@ class UniRigAR(ModelSpec):
         if hasattr(llm_config, '_attn_implementation'):
             llm_config._attn_implementation = 'eager'  # Use default eager attention
         self.transformer = AutoModelForCausalLM.from_config(config=llm_config)
-        
+
         self.hidden_size = llm.hidden_size
-        
+
         self.mesh_encoder = get_mesh_encoder(**mesh_encoder)
-        
+
         if (
             isinstance(self.mesh_encoder, MAP_MESH_ENCODER.michelangelo) or
             isinstance(self.mesh_encoder, MAP_MESH_ENCODER.michelangelo_encoder)
@@ -72,7 +72,7 @@ class UniRigAR(ModelSpec):
             self.output_proj = nn.Linear(self.mesh_encoder.width, self.hidden_size)
         else:
             raise NotImplementedError()
-            
+
     def encode_mesh_cond(self, vertices: FloatTensor, normals: FloatTensor) -> FloatTensor:
         assert not torch.isnan(vertices).any()
         assert not torch.isnan(normals).any()
@@ -88,15 +88,15 @@ class UniRigAR(ModelSpec):
             return latents
         else:
             raise NotImplementedError()
-    
+
     def training_step(self, batch: Dict) -> Dict[str, FloatTensor]:
         cond = self.encode_mesh_cond(vertices=batch['vertices'], normals=batch['normals']).to(dtype=self.transformer.dtype)
         B = cond.shape[0]
         input_ids: LongTensor = batch['input_ids']
         inputs_embeds = self.transformer.get_input_embeddings()(input_ids).to(dtype=self.transformer.dtype)
-        
+
         inputs_embeds = torch.concat([cond, inputs_embeds], dim=1)
-        
+
         attention_mask = batch['attention_mask']
         # add attention to condition
         attention_mask = pad(attention_mask, (cond.shape[1], 0, 0, 0), value=1.)
@@ -105,7 +105,7 @@ class UniRigAR(ModelSpec):
             attention_mask=attention_mask,
             use_cache=False,
         )
-        
+
         # (B, L, vocab_size)
         logit = output.logits[:, cond.shape[1]:].reshape(B, -1, self.vocab_size)
         # compute loss with shift one-token right
@@ -113,25 +113,25 @@ class UniRigAR(ModelSpec):
         logit = logit[:, :-1] # (B, n)
         num_discrete = self.tokenizer.num_discrete
         s = torch.nn.functional.softmax(logit, dim=-1)
-        
+
         label = input_ids[:, 1:].clone() # (B, n)
         mask = label < num_discrete
         dis = torch.arange(num_discrete, device=device).view(1, 1, -1) # (B, n, num_discrete)
         dis = (dis - label.unsqueeze(2).repeat(1, 1, num_discrete)).type(torch.float32) / num_discrete
         dis_loss = (s[:, :, :num_discrete] * torch.abs(dis))[mask].sum() / 50 # ignore padding loss
-        
+
         label[attention_mask[:, cond.shape[1] + 1:]==0] = -100
-        
+
         assert not torch.isnan(logit).any(), logit
         ce_loss = nn.functional.cross_entropy(logit.permute(0, 2, 1), label)
         return {
             'ce_loss': ce_loss,
             'dis_loss': dis_loss,
         }
-    
+
     def forward(self, data: Dict):
         return self.training_step(data=data)
-    
+
     @torch.no_grad()
     def generate(
         self,
@@ -144,9 +144,9 @@ class UniRigAR(ModelSpec):
         Do not support batch!
         '''
         cond = self.encode_mesh_cond(vertices=vertices, normals=normals).to(dtype=self.transformer.dtype)
-        
+
         start_tokens = [self.tokenizer.bos]
-        
+
         if cls is not None:
             start_tokens.append(self.tokenizer.cls_name_to_token(cls=cls))
         start_tokens = torch.tensor(start_tokens).to(cond.device)
@@ -154,7 +154,7 @@ class UniRigAR(ModelSpec):
             start_tokens.unsqueeze(0)
         ).to(dtype=self.transformer.dtype)
         cond = torch.cat([cond, start_embed], dim=1)
-        
+
         processor = VocabSwitchingLogitsProcessor(
             tokenizer=self.tokenizer,
             start_tokens=start_tokens,
@@ -171,10 +171,10 @@ class UniRigAR(ModelSpec):
         for token in reversed(start_tokens):
             output_ids = pad(output_ids, (1, 0), value=token)
         output_ids = output_ids.detach().cpu().numpy()
-        
+
         res = self.tokenizer.detokenize(ids=output_ids)
         return res
-    
+
     def predict_step(self, batch: Dict, no_cls: bool=False):
         vertices: FloatTensor   = batch['vertices']
         normals : FloatTensor   = batch['normals']

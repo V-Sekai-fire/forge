@@ -55,4 +55,3 @@ def point_collate_fn(batch, mix_prob=0):
 
 def gaussian_kernel(dist2: np.array, a: float = 1, c: float = 5):
     return a * np.exp(-dist2 / (2 * c**2))
-

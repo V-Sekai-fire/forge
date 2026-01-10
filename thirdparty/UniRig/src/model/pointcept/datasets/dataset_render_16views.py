@@ -124,8 +124,8 @@ class SAMPart3DDataset16Views(Dataset):
         # print("object_org_coord", torch.unique(self.object_org_coord, return_counts=True))
         del obj["origin_coord"], obj["face_index"], obj["inverse"]
         self.object = obj
-        
-            
+
+
 
     def prepare_meta_data(self, data_path=None):
         SAM_model = pipeline("mask-generation", model="facebook/sam-vit-huge", device=self.device)
@@ -169,7 +169,7 @@ class SAMPart3DDataset16Views(Dataset):
             mapping[depth_valid] = indices.cpu().flatten()
             mapping_valid = mapping != -1
 
-            # Calculate groups 
+            # Calculate groups
             try:
                 masks = SAM_model(img, points_per_side=32, pred_iou_thresh=0.9, stability_score_thresh=0.9)
                 masks = masks['masks']
@@ -187,7 +187,7 @@ class SAMPart3DDataset16Views(Dataset):
                     continue
                 else:
                     masks_filtered.append(mask)
-            pixel_level_keys, scale, mask_cdf = self._calculate_3d_groups(torch.from_numpy(depth), mapping_valid, masks_filtered, points_tensor[mask_dis])    
+            pixel_level_keys, scale, mask_cdf = self._calculate_3d_groups(torch.from_numpy(depth), mapping_valid, masks_filtered, points_tensor[mask_dis])
 
             pixel_level_keys_list.append(pixel_level_keys)
             scale_list.append(scale)
@@ -318,7 +318,7 @@ class SAMPart3DDataset16Views(Dataset):
         mask_cdf[never_masked] = 1.0
 
         return (pixel_level_keys.cpu(), scale.cpu(), mask_cdf.cpu())
-    
+
     @staticmethod
     def create_pixel_mask_array(masks: torch.Tensor):
         """
@@ -416,7 +416,7 @@ class SAMPart3DDataset16Views(Dataset):
                     * random_vec_densify[random_index == j]
                 )
             scale[i : i + npximg] = curr_scale.squeeze().to(self.device)
-        
+
         batch = dict()
         batch["mask_id"] = mask_id
         batch["scale"] = scale

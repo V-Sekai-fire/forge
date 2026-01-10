@@ -20,14 +20,14 @@ jobs:
         run: |
           ADDON_NAME="Optimized-Tris-to-Quads-Converter"
           mkdir -p $ADDON_NAME
-          
+
           echo "Copying files into $ADDON_NAME"
           # Copy all add-on files from the root directory to the folder, excluding the .git and workflow directories
           rsync -av --exclude=".git" --exclude=".github" --exclude="$ADDON_NAME" . $ADDON_NAME/
-          
+
           echo "Listing $ADDON_NAME contents..."
           ls -la $ADDON_NAME
-          
+
       - name: Archive the addon for release
         run: |
           ADDON_NAME="Optimized-Tris-to-Quads-Converter"

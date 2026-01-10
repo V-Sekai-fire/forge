@@ -14,43 +14,43 @@ from setuptools.command.build_py import build_py
 
 class BuildLibrary(build_ext):
     """Build the meshoptimizer C++ shared library using CMake"""
-    
+
     def run(self):
         """Build the shared library"""
         if not self.dry_run:
             self.build_library()
         # Call parent to handle Python extensions (if any)
         super().run()
-    
+
     def build_library(self):
         """Build meshoptimizer shared library using CMake"""
         base_dir = Path(__file__).parent.absolute()
         build_dir = base_dir / "build"
         build_dir.mkdir(exist_ok=True)
-        
+
         # Configure with CMake
         cmake_args = [
             "-DCMAKE_BUILD_TYPE=Release",
             "-DBUILD_SHARED_LIBS=ON",
         ]
-        
+
         try:
             subprocess.check_call(
                 ["cmake", str(base_dir)] + cmake_args,
                 cwd=str(build_dir)
             )
-            
+
             # Build
             subprocess.check_call(
                 ["cmake", "--build", ".", "--config", "Release"],
                 cwd=str(build_dir)
             )
-            
+
             # Copy library to package directory so it can be found
             lib_ext = ".so" if sys.platform != "darwin" else ".dylib"
             if sys.platform == "win32":
                 lib_ext = ".dll"
-            
+
             # Find the built library
             lib_files = list(build_dir.glob(f"*meshoptimizer*{lib_ext}"))
             if not lib_files:
@@ -58,7 +58,7 @@ class BuildLibrary(build_ext):
                 release_dir = build_dir / "Release"
                 if release_dir.exists():
                     lib_files = list(release_dir.glob(f"*meshoptimizer*{lib_ext}"))
-            
+
             if lib_files:
                 # Copy to package directory
                 package_dir = base_dir
@@ -73,7 +73,7 @@ class BuildLibrary(build_ext):
 
 class BuildPyWithLibrary(build_py):
     """Build Python package and ensure library is built"""
-    
+
     def run(self):
         # Build library first
         build_lib = BuildLibrary(self.distribution)

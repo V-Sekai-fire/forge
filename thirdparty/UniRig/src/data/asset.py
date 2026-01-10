@@ -20,95 +20,95 @@ class Asset(Exporter):
     '''
     Dataclass to handle data parsed from raw data.
     '''
-    
+
     # data class
     cls: str
-    
+
     # where is this asset from
     path: str
-    
+
     # data file name
     data_name: str
-    
+
     # vertices of the mesh, shape (N, 3), float32
     vertices: ndarray
-    
+
     # normals of vertices, shape (N, 3), float32
     vertex_normals: ndarray
-    
+
     # faces of mesh, shape (F, 3), face id starts from 0 to F-1, int64
     faces: ndarray
-    
+
     # face normal of mesh, shape (F, 3), float32
     face_normals: ndarray
-    
+
     # joints of bones, shape (J, 3), float32
     joints: Union[ndarray, None]=None
-    
+
     # tails of joints, shape (J, 3), float32
     tails: Union[ndarray, None]=None
-    
+
     # skinning of joints, shape (N, J), float32
     skin: Union[ndarray, None]=None
-    
+
     # whether the joint has skin, bool
     no_skin: Union[ndarray, None]=None
-    
+
     # vertex groups
     vertex_groups: Union[Dict[str, ndarray], None]=None
-    
+
     # parents of joints, None represents no parent(a root joint)
     # make sure parent[k] < k
     parents: Union[List[Union[int, None]], None]=None
-    
+
     # names of joints
     names: Union[List[str], None]=None
-    
+
     # sampled vertices, shape (N, 3)
     sampled_vertices: Union[ndarray, None]=None
-    
+
     # sampled normals, shape (N, 3)
     sampled_normals: Union[ndarray, None]=None
-    
+
     # sampled vertex groups, every vertex group should be (N, J)
     sampled_vertex_groups: Union[Dict[str, ndarray], None]=None
-    
+
     # {id: part}, part==None -> a spring token
     parts_bias: Union[Dict[int, Union[str, None]], None]=None
-    
+
     # local coordinate, shape (J, 4, 4)
     matrix_local: Union[ndarray, None]=None
-    
+
     # pose matrix for skinning loss calculation, shape (J, 4, 4)
     pose_matrix: Union[ndarray, None]=None
-    
+
     meta: Union[Dict[str, ...], None]=None
-    
+
     @property
     def N(self):
         '''
         number of vertices
         '''
         return self.vertices.shape[0]
-    
+
     @property
     def F(self):
         '''
         number of faces
         '''
         return self.faces.shape[0]
-    
+
     @property
     def J(self):
         '''
         number of joints
         '''
         return self.joints.shape[0]
-    
+
     def get_matrix(self, matrix_basis: ndarray, matrix_local: Union[ndarray, None]=None):
         '''
         get matrix
-        
+
         matrix_basis: (J, 4, 4)
         '''
         if matrix_local is None:
@@ -122,7 +122,7 @@ class Asset(Exporter):
                 matrix_local[:, 3, 3] = 1.
                 for i in range(self.J):
                     matrix_local[i, :3, 3] = self.joints[i]
-        
+
         matrix = np.zeros((self.J, 4, 4))
         for i in range(self.J):
             if i==0:
@@ -131,18 +131,18 @@ class Asset(Exporter):
                 pid = self.parents[i]
                 matrix_parent = matrix[pid]
                 matrix_local_parent = matrix_local[pid]
-                
+
                 matrix[i] = (
                     matrix_parent @
                     (np.linalg.inv(matrix_local_parent) @ matrix_local[i]) @
                     matrix_basis[i]
                 )
         return matrix
-    
+
     def apply_matrix_basis(self, matrix_basis: ndarray):
         '''
         apply a pose to armature
-        
+
         matrix_basis: (J, 4, 4)
         '''
         matrix_local = self.matrix_local
@@ -154,7 +154,7 @@ class Asset(Exporter):
             matrix_local[:, 3, 3] = 1.
             for i in range(self.J):
                 matrix_local[i, :3, 3] = self.joints[i].copy()
-        
+
         matrix = self.get_matrix(matrix_basis=matrix_basis, matrix_local=matrix_local)
         self.joints = matrix[:, :3, 3].copy()
         vertices = linear_blend_skinning(self.vertices, matrix_local, matrix, self.skin, pad=1, value=1.)
@@ -170,7 +170,7 @@ class Asset(Exporter):
         self.vertices = vertices
         self.vertex_normals = mesh.vertex_normals.copy()
         self.face_normals = mesh.face_normals.copy()
-    
+
     def set_order_by_names(self, new_names: List[str]):
         assert len(new_names) == len(self.names)
         name_to_id = {name: id for (id, name) in enumerate(self.names)}
@@ -187,7 +187,7 @@ class Asset(Exporter):
                 pid = new_name_to_id[pname]
                 assert pid < new_id, 'new order does not form a tree'
             new_parents.append(pid)
-        
+
         if self.joints is not None:
             self.joints = self.joints[perm]
         self.parents = new_parents
@@ -200,23 +200,23 @@ class Asset(Exporter):
         if self.matrix_local is not None:
             self.matrix_local = self.matrix_local[perm]
         self.names = new_names
-    
+
     def set_order(self, order: Order):
         if self.names is None or self.parents is None:
             return
         new_names, self.parts_bias = order.arrange_names(cls=self.cls, names=self.names, parents=self.parents)
         self.set_order_by_names(new_names=new_names)
-    
+
     def collapse(self, keep: List[str]):
         dsu = [i for i in range(self.J)]
-        
+
         def find(x: int) -> int:
             if dsu[x] == x:
                 return x
             y = find(dsu[x])
             dsu[x] = y
             return y
-        
+
         def merge(x: int, y: int):
             dsu[find(x)] = find(y)
 
@@ -233,7 +233,7 @@ class Asset(Exporter):
             new_no_skin = self.no_skin.copy()
         else:
             new_no_skin = None
-        
+
         if self.matrix_local is not None:
             matrix_local = self.matrix_local.copy()
         else:
@@ -266,7 +266,7 @@ class Asset(Exporter):
             if new_no_skin is not None:
                 new_no_skin[pid] &= new_no_skin[id]
             merge(id, pid)
-        
+
         if new_tails is not None:
             new_tails = new_tails[perm]
         if new_skin is not None:
@@ -275,7 +275,7 @@ class Asset(Exporter):
             new_no_skin = new_no_skin[perm]
         if matrix_local is not None:
             matrix_local = matrix_local[perm]
-        
+
         if self.joints is not None:
             self.joints = self.joints[perm]
         self.parents        = new_parents
@@ -284,7 +284,7 @@ class Asset(Exporter):
         self.no_skin        = new_no_skin
         self.names          = new_names
         self.matrix_local   = matrix_local
-    
+
     def drop_part(self, keep: List[str]):
         assert self.skin is not None
         name_to_id = {n: i for (i, n) in enumerate(self.names)}
@@ -312,7 +312,7 @@ class Asset(Exporter):
             self.face_normals = self.face_normals[mask]
         self.skin = self.skin[indices]
         self.collapse(keep=keep)
-    
+
     @staticmethod
     def from_raw_data(
         raw_data: RawData,
@@ -340,10 +340,10 @@ class Asset(Exporter):
             matrix_local=raw_data.matrix_local,
             meta={},
         )
-    
+
     def get_tokenize_input(self) -> TokenizeInput:
         children = defaultdict(list)
-        
+
         for (id, p) in enumerate(self.parents):
             if p is not None:
                 children[p].append(id)
@@ -373,7 +373,7 @@ class Asset(Exporter):
             cls=self.cls,
             parts_bias=self.parts_bias,
         )
-    
+
     def export_pc(self, path: str, with_normal: bool=True, normal_size=0.01):
         '''
         export point cloud
@@ -386,25 +386,25 @@ class Asset(Exporter):
         if with_normal == False:
             normals = None
         self._export_pc(vertices=vertices, path=path, vertex_normals=normals, normal_size=normal_size)
-    
+
     def export_mesh(self, path: str):
         '''
         export mesh
         '''
         self._export_mesh(vertices=self.vertices, faces=self.faces, path=path)
-    
+
     def export_skeleton(self, path: str):
         '''
         export spring
         '''
         self._export_skeleton(joints=self.joints, parents=self.parents, path=path)
-    
+
     def export_skeleton_sequence(self, path: str):
         '''
         export spring
         '''
         self._export_skeleton_sequence(joints=self.joints, parents=self.parents, path=path)
-    
+
     def export_fbx(
         self,
         path: str,

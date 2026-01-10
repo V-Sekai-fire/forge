@@ -19,12 +19,12 @@ This will perform a simple transfer of weights from a sphere to the plane above 
 
 ![SphereToPlane](imgs/SphereToPlane.png)
 
-However, the code contains the full implementation of the method, and you can swap 
+However, the code contains the full implementation of the method, and you can swap
 the meshes with any other meshes and load the source skinning weights.
 
 ### Body to garment transfer
-(Coming soon) Load fbx files of a body and cloth meshes. Do the transfer from 
-the body to cloth and write the result of the transfer into another fbx that can 
+(Coming soon) Load fbx files of a body and cloth meshes. Do the transfer from
+the body to cloth and write the result of the transfer into another fbx that can
 be loaded in other 3D software (Blender, Unreal, etc.).
 
 ## Other 3rd party implementations

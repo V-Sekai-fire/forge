@@ -21,7 +21,7 @@ from ..model.spec import ModelSpec
 from ..tokenizer.spec import DetokenizeOutput
 
 class ARSystem(L.LightningModule):
-    
+
     def __init__(
         self,
         steps_per_epoch: int,
@@ -49,14 +49,14 @@ class ARSystem(L.LightningModule):
         self.val_interval       = val_interval
         self.val_start_from     = val_start_from
         self.scheduler_config   = scheduler_config
-        
+
         if self.record_res:
             assert self.output_path is not None, "record_res is True, but output_path in ar is None"
-        
+
         if loss_config is not None:
             assert 'loss_sum' not in loss_config, 'loss cannot be named `loss_sum`'
             assert 'val_loss_sum' not in loss_config, 'loss cannot be named `val_loss_sum`'
-    
+
     def forward(self, batch, validate: bool=False) -> Dict[str, Tensor]:
         loss_dict = self.model.training_step(batch)
         loss_sum = 0.
@@ -78,7 +78,7 @@ class ARSystem(L.LightningModule):
             self.log_dict(log_loss_dict, prog_bar=True, logger=True)
         self.log('batch_size', len(batch['cls']))
         return loss_sum
-    
+
     def training_step(self, batch, batch_idx, dataloader_idx=None) -> Tensor:
         assert self.loss_config is not None
 
@@ -88,23 +88,23 @@ class ARSystem(L.LightningModule):
             if 'lr' in optimizer.param_groups[0]:
                 current_lr = optimizer.param_groups[0]['lr']
                 self.log('lr', current_lr, prog_bar=True, logger=True)
-        
+
         return self.forward(batch)
-    
+
     def validation_step(self, batch, batch_idx, dataloader_idx=None) -> Tensor:
         assert self.loss_config is not None
         return self.forward(batch, validate=True)
-    
+
     def on_validation_epoch_start(self):
         self._validation_loss = defaultdict(list)
-    
+
     def on_validation_batch_start(self, batch, batch_idx, dataloader_idx=0):
         if self.record_res:
             os.makedirs(self.output_path, exist_ok=True)
-    
+
     def on_before_optimizer_step(self, optimizer):
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-    
+
     def on_validation_batch_end(self, outputs, batch, batch_idx, dataloader_idx=0):
         if self.val_start_from is not None and self.val_interval is not None:
             if self.current_epoch % self.val_interval != 0 or self.current_epoch < self.val_start_from:
@@ -117,7 +117,7 @@ class ARSystem(L.LightningModule):
         origin_face_normals = batch['origin_face_normals']
         num_points = batch['num_points']
         num_faces = batch['num_faces']
-        
+
         if isinstance(origin_vertices, torch.Tensor):
             origin_vertices = origin_vertices.detach().cpu().numpy()
         if isinstance(origin_vertex_normals, torch.Tensor):
@@ -173,10 +173,10 @@ class ARSystem(L.LightningModule):
                 parents = batch['parents'][id]
                 num_bones = batch['num_bones'][id]
                 res._export_skeleton(joints=joints, parents=parents[:num_bones], path=path+"_skeleton_ref.obj")
-                
+
                 num_p = num_points[id]
                 num_f = num_faces[id]
-                
+
                 raw_data = RawData(
                     vertices=origin_vertices[id, :num_p],
                     vertex_normals=origin_vertex_normals[id, :num_p],
@@ -193,7 +193,7 @@ class ARSystem(L.LightningModule):
                     cls=None,
                 )
                 raw_data.export_fbx(path=path+".fbx")
-    
+
     def on_validation_epoch_end(self):
         # calculate per class validation loss
         val_loss_j2j = 0.
@@ -217,13 +217,13 @@ class ARSystem(L.LightningModule):
             self._validation_loss['val_loss_j2j'] = val_loss_j2j / tot_j2j
         d = dict(sorted(self._validation_loss.items())) # sort to prevent wandb bugs
         self.log_dict(d, prog_bar=False, logger=True, sync_dist=True)
-    
+
     def _predict_step(self, batch, batch_idx, dataloader_idx=None):
         batch['generate_kwargs'] = self.generate_kwargs
         res = self.model.predict_step(batch)
         assert isinstance(res, list), f"expect type of prediction from {self.model.__class__} to be a list, found: {type(res)}"
         return res
-    
+
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         try:
             prediction: List[DetokenizeOutput] = self._predict_step(batch=batch, batch_idx=batch_idx, dataloader_idx=dataloader_idx)
@@ -231,7 +231,7 @@ class ARSystem(L.LightningModule):
         except Exception as e:
             print(str(e))
             return []
-    
+
     def configure_optimizers(self) -> Dict:
         _d = {}
         optimizer = get_optimizer(model=self.model, config=self.optimizer_config)
@@ -244,9 +244,9 @@ class ARSystem(L.LightningModule):
                 'frequency': 1,
             }
         _d['optimizer'] = optimizer
-        
+
         return _d
-    
+
 class ARWriter(BasePredictionWriter):
     def __init__(
         self,
@@ -269,9 +269,9 @@ class ARWriter(BasePredictionWriter):
             self.order = get_order(config=order_config)
         else:
             self.order = None
-        
+
         self._epoch = 0
-        
+
     def on_predict_end(self, trainer, pl_module):
         if self._epoch < self.repeat - 1:
             print(f"Finished prediction run {self._epoch + 1}/{self.repeat}, starting next run...")
@@ -284,14 +284,14 @@ class ARWriter(BasePredictionWriter):
         paths = batch['path']
         detokenize_output_list: List[DetokenizeOutput] = prediction
         vertices = batch['vertices']
-        
+
         origin_vertices = batch['origin_vertices']
         origin_vertex_normals = batch['origin_vertex_normals']
         origin_faces = batch['origin_faces']
         origin_face_normals = batch['origin_face_normals']
         num_points = batch['num_points']
         num_faces = batch['num_faces']
-        
+
         if isinstance(origin_vertices, torch.Tensor):
             origin_vertices = origin_vertices.detach().cpu().numpy()
         if isinstance(origin_vertex_normals, torch.Tensor):
@@ -315,16 +315,16 @@ class ARWriter(BasePredictionWriter):
 
                 if self.output_dir is not None:
                     path = os.path.join(self.output_dir, path)
-                
+
                 if self.add_num:
                     path = os.path.join(path, f"{save_name}_{self._epoch}.{suffix}")
                 else:
                     path = os.path.join(path, f"{save_name}.{suffix}")
                 return path
-            
+
             num_p = num_points[id]
             num_f = num_faces[id]
-            
+
             raw_data = RawData(
                 vertices=origin_vertices[id, :num_p],
                 vertex_normals=origin_vertex_normals[id, :num_p],

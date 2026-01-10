@@ -67,7 +67,7 @@ def load(filepath: str, return_armature: bool=False):
             # Check if addon is already installed and enabled
             vrm_addon_enabled = False
             vrm_module_name = None
-            
+
             # Check common VRM addon module names
             for addon in bpy.context.preferences.addons:
                 if 'vrm' in addon.module.lower():
@@ -75,7 +75,7 @@ def load(filepath: str, return_armature: bool=False):
                     if addon.enabled:
                         vrm_addon_enabled = True
                         break
-            
+
             if not vrm_addon_enabled:
                 # Try to enable if installed but not enabled
                 if vrm_module_name:
@@ -85,7 +85,7 @@ def load(filepath: str, return_armature: bool=False):
                         vrm_addon_enabled = True
                     except Exception as e:
                         print(f"Failed to enable VRM addon: {e}")
-                
+
                 # If not installed, try to install from Extensions Platform (Blender 4.2+)
                 if not vrm_addon_enabled:
                     try:
@@ -107,11 +107,11 @@ def load(filepath: str, return_armature: bool=False):
                         print("  2. Click 'Install from Extensions Platform' or download from:")
                         print("     https://extensions.blender.org/add-ons/vrm/")
                         raise RuntimeError("VRM addon is not installed. Please install it manually from Blender's Extensions Platform.")
-            
+
             # Verify addon is enabled before importing
             if not vrm_addon_enabled:
                 raise RuntimeError("VRM addon is not enabled. Please enable it in Edit > Preferences > Add-ons")
-            
+
             bpy.ops.import_scene.vrm(
                 filepath=filepath,
                 use_addon_preferences=True,
@@ -155,7 +155,7 @@ def load(filepath: str, return_armature: bool=False):
         if len(armature)>1:
             raise ValueError(f"multiple armatures found")
         armature = armature[0]
-        
+
         armature.select_set(True)
         bpy.context.view_layer.objects.active = armature
         bpy.ops.object.mode_set(mode='EDIT')
@@ -164,7 +164,7 @@ def load(filepath: str, return_armature: bool=False):
 
         bpy.ops.object.mode_set(mode='OBJECT')
         armature.select_set(False)
-        
+
         bpy.ops.object.select_all(action='DESELECT')
         return armature
 
@@ -196,7 +196,7 @@ def get_skin(arranged_bones):
         _dict_skin[obj.name] = {
             'skin': skin_weight,
         }
-    
+
     skin = np.concatenate([
         _dict_skin[d]['skin'] for d in _dict_skin
     ], axis=0)
@@ -214,8 +214,8 @@ def get_correct_orientation_kdtree(a: np.ndarray, b: np.ndarray, bones: np.ndarr
     min_loss = float('inf')
     best_transformed = a.copy()
     axis_permutations = list(itertools.permutations([0, 1, 2]))
-    sign_combinations = [(x, y, z) for x in [1, -1] 
-                        for y in [1, -1] 
+    sign_combinations = [(x, y, z) for x in [1, -1]
+                        for y in [1, -1]
                         for z in [1, -1]]
     _bones = bones.copy()
     for perm in axis_permutations:
@@ -230,7 +230,7 @@ def get_correct_orientation_kdtree(a: np.ndarray, b: np.ndarray, bones: np.ndarr
                 best_transformed = a[:, perm] * np.array(signs)
                 bones[:, :3] = _bones[:, :3][:, perm] * np.array(signs)
                 bones[:, 3:] = _bones[:, 3:][:, perm] * np.array(signs)
-    
+
     return best_transformed, bones
 
 def denormalize_vertices(mesh_vertices: ndarray, vertices: ndarray, bones: ndarray) -> np.ndarray:
@@ -262,14 +262,14 @@ def create_skeleton_mesh(
 ) -> Tuple[ndarray, ndarray, ndarray]:
     """
     Create a skeleton line/tube mesh from bones (similar to SIGGRAPH 2025 Roblox rigging).
-    
+
     Args:
         bones: (J, 6) array where bones[i, :3] is head, bones[i, 3:] is tail
         parents: List of parent indices (None for root)
         names: List of bone names
         cylinder_radius: Radius of bone cylinders (default: 1% of average bone length)
         vertices_per_cross_section: Number of vertices around bone (default: 8)
-    
+
     Returns:
         skeleton_vertices: (N_skeleton, 3) array of skeleton mesh vertices
         skeleton_faces: (F_skeleton, 3) array of skeleton mesh faces
@@ -278,31 +278,31 @@ def create_skeleton_mesh(
     J = len(names)
     if J == 0:
         return np.array([], dtype=np.float32).reshape(0, 3), np.array([], dtype=np.int32).reshape(0, 3), np.array([], dtype=np.float32).reshape(0, 0)
-    
+
     # Calculate average bone length for default radius
     bone_lengths = np.linalg.norm(bones[:, 3:] - bones[:, :3], axis=1)
     avg_bone_length = np.mean(bone_lengths[bone_lengths > 0])
     if cylinder_radius is None:
         cylinder_radius = max(avg_bone_length * 0.01, 0.001)  # 1% of average, minimum 0.001
-    
+
     skeleton_vertices_list = []
     skeleton_faces_list = []
     skeleton_skin_list = []
     vertex_offset = 0
-    
+
     # Create cylinder for each bone
     for bone_idx in range(J):
         head = bones[bone_idx, :3]
         tail = bones[bone_idx, 3:]
         bone_dir = tail - head
         bone_length = np.linalg.norm(bone_dir)
-        
+
         if bone_length < 1e-6:
             # Skip zero-length bones
             continue
-        
+
         bone_dir_normalized = bone_dir / bone_length
-        
+
         # Create orthogonal basis for cylinder cross-section
         # Use a stable method to find perpendicular vectors
         if abs(bone_dir_normalized[2]) < 0.9:
@@ -313,7 +313,7 @@ def create_skeleton_mesh(
         perp1 = perp1 / np.linalg.norm(perp1)
         perp2 = np.cross(bone_dir_normalized, perp1)
         perp2 = perp2 / np.linalg.norm(perp2)
-        
+
         # Generate vertices for this bone cylinder
         bone_vertices = []
         for i in range(vertices_per_cross_section):
@@ -323,10 +323,10 @@ def create_skeleton_mesh(
             # Add vertices at head and tail of bone
             bone_vertices.append(head + cylinder_radius * circle_vec)
             bone_vertices.append(tail + cylinder_radius * circle_vec)
-        
+
         bone_vertices = np.array(bone_vertices)
         skeleton_vertices_list.append(bone_vertices)
-        
+
         # Generate faces for this bone cylinder
         # Each cross-section has vertices_per_cross_section vertices
         # Connect adjacent vertices to form quads (triangulated)
@@ -337,36 +337,36 @@ def create_skeleton_mesh(
             curr_tail = vertex_offset + i * 2 + 1
             next_head = vertex_offset + ((i + 1) % vertices_per_cross_section) * 2
             next_tail = vertex_offset + ((i + 1) % vertices_per_cross_section) * 2 + 1
-            
+
             # Create two triangles per quad
             # Triangle 1: curr_head, next_head, curr_tail
             bone_faces.append([curr_head, next_head, curr_tail])
             # Triangle 2: next_head, next_tail, curr_tail
             bone_faces.append([next_head, next_tail, curr_tail])
-        
+
         skeleton_faces_list.append(np.array(bone_faces, dtype=np.int32))
-        
+
         # Generate skin weights for this bone
         # Each vertex gets weight 1.0 for this bone, 0.0 for others
         num_vertices_bone = len(bone_vertices)
         bone_skin = np.zeros((num_vertices_bone, J), dtype=np.float32)
         bone_skin[:, bone_idx] = 1.0
         skeleton_skin_list.append(bone_skin)
-        
+
         vertex_offset += num_vertices_bone
-    
+
     if len(skeleton_vertices_list) == 0:
         return np.array([], dtype=np.float32).reshape(0, 3), np.array([], dtype=np.int32).reshape(0, 3), np.array([], dtype=np.float32).reshape(0, J)
-    
+
     # Concatenate all bones
     skeleton_vertices = np.vstack(skeleton_vertices_list)
     skeleton_faces = np.vstack(skeleton_faces_list)
     skeleton_skin = np.vstack(skeleton_skin_list)
-    
+
     # At joints, blend weights from connected bones
     # For now, we'll keep the simple approach where each bone segment has its own weight
     # Joint blending can be added later if needed
-    
+
     return skeleton_vertices, skeleton_faces, skeleton_skin
 
 def make_armature(
@@ -379,7 +379,7 @@ def make_armature(
     add_root: bool=False,
 ):
     context = bpy.context
-    
+
     mesh_vertices = []
     local_coord = np.eye(4)
     local_parent = None
@@ -397,7 +397,7 @@ def make_armature(
 
     mesh_vertices = np.stack(mesh_vertices)
     vertices, bones = denormalize_vertices(mesh_vertices, vertices, bones)
-    
+
     bpy.ops.object.add(type="ARMATURE", location=(0, 0, 0))
     armature = context.object
     bpy.ops.object.mode_set(mode="EDIT")
@@ -407,7 +407,7 @@ def make_armature(
         bone_root.name = 'Root'
         bone_root.head = (0., 0., 0.)
         bone_root.tail = (bones[0, 0], bones[0, 1], bones[0, 2])
-    
+
     J = len(names)
     def extrude_bone(
         name: Union[None, str],
@@ -438,25 +438,25 @@ def make_armature(
 
     # must set to object mode to enable parent_set
     bpy.ops.object.mode_set(mode='OBJECT')
-    
+
     objects = bpy.data.objects
     for o in bpy.context.selected_objects:
         o.select_set(False)
-    
+
     argsorted = np.argsort(-skin, axis=1)
     vertex_group_reweight = skin[np.arange(skin.shape[0])[..., None], argsorted]
     vertex_group_reweight = vertex_group_reweight / vertex_group_reweight[..., :group_per_vertex].sum(axis=1)[...,None]
     vertex_group_reweight = np.nan_to_num(vertex_group_reweight)
-    
+
     # Detect cold start: check if vertices are skeleton joints (count matches bone count)
     # In cold start, vertices are skeleton joints, not mesh vertices
     is_cold_start = (vertices.shape[0] == len(names)) and (vertices.shape[0] < 1000)  # Heuristic: skeleton joints are few
-    
+
     # Initialize source data variables
     source_vertices = vertices
     source_skin = skin
     source_faces = np.array([], dtype=np.int32).reshape(0, 3)
-    
+
     # Build source mesh faces from vertices
     # For cold start: create skeleton mesh from bones
     # For normal case: use convex hull or existing mesh topology
@@ -472,7 +472,7 @@ def make_armature(
                 cylinder_radius=None,  # Auto-calculate
                 vertices_per_cross_section=8
             )
-            
+
             if len(skeleton_vertices) > 0 and len(skeleton_faces) > 0:
                 print(f"[Info] Created skeleton mesh: {len(skeleton_vertices)} vertices, {len(skeleton_faces)} faces")
                 # Use skeleton mesh as source
@@ -487,7 +487,7 @@ def make_armature(
             import traceback
             traceback.print_exc()
             is_cold_start = False
-    
+
     # If not using skeleton mesh, try ConvexHull for source faces
     if not is_cold_start or len(source_faces) == 0:
         try:
@@ -506,7 +506,7 @@ def make_armature(
         except Exception as e:
             print(f"[Warning] Could not create source mesh faces: {e}")
             source_faces = np.array([], dtype=np.int32).reshape(0, 3)
-    
+
     for ob in objects:
         if ob.type != 'MESH':
             continue
@@ -516,7 +516,7 @@ def make_armature(
         vis = []
         for x in ob.vertex_groups:
             vis.append(x.name)
-        
+
         n_vertices = []
         m = local_coord @ np.array(ob.matrix_world)
         matrix_world_rot = m[:3, :3]
@@ -524,7 +524,7 @@ def make_armature(
         for v in ob.data.vertices:
             n_vertices.append(matrix_world_rot @ np.array(v.co) + matrix_world_bias)
         n_vertices = np.stack(n_vertices)
-        
+
         # Get target mesh faces from Blender object
         target_faces = []
         for poly in ob.data.polygons:
@@ -533,20 +533,20 @@ def make_armature(
                 for i in range(1, len(poly.vertices) - 1):
                     target_faces.append([poly.vertices[0], poly.vertices[i], poly.vertices[i + 1]])
         target_faces = np.array(target_faces, dtype=np.int32) if target_faces else np.array([], dtype=np.int32).reshape(0, 3)
-        
+
         # Use robust transfer - requires libigl, will crash if not available
         if len(source_faces) == 0 or len(target_faces) == 0:
             raise ValueError(
                 f"Cannot use robust skin transfer: source_faces={len(source_faces)}, target_faces={len(target_faces)}. "
                 f"Both meshes must have valid face data."
             )
-        
+
         # Check if we have valid source data
         if source_vertices.shape[0] == 0 or source_skin.shape[0] != source_vertices.shape[0]:
             raise ValueError(
                 f"Invalid source data for robust transfer: vertices={source_vertices.shape[0]}, skin={source_skin.shape[0]}"
             )
-        
+
         print(f"[Info] Using robust skin weight transfer for {ob.name}")
         if is_cold_start:
             print(f"[Info] Using skeleton mesh as source (cold start mode)")
@@ -555,7 +555,7 @@ def make_armature(
         bbox_min = n_vertices.min(axis=0)
         bbox_max = n_vertices.max(axis=0)
         search_radius = 0.05 * np.linalg.norm(bbox_max - bbox_min)
-        
+
         # Transfer weights with error handling
         try:
             transferred_skin, success = robust_skin_weights_transfer(
@@ -570,7 +570,7 @@ def make_armature(
                 smooth_alpha=0.2,
                 use_smoothing=True
             )
-            
+
             if not success:
                 # Inpainting failed, but we still have interpolated weights to use
                 # Continue with the interpolated weights as fallback
@@ -582,16 +582,16 @@ def make_armature(
             print(f"[Info] Falling back to simple interpolation-based weight transfer")
             import traceback
             traceback.print_exc()
-            
+
             # Use simple interpolation fallback
             # Find closest vertices and interpolate weights
             try:
                 tree = cKDTree(source_vertices)
                 distances, indices = tree.query(n_vertices, k=min(4, len(source_vertices)))
-                
+
                 # Initialize transferred skin with zeros
                 transferred_skin = np.zeros((len(n_vertices), source_skin.shape[1]))
-                
+
                 # Interpolate weights using inverse distance weighting
                 for i, (dists, idxs) in enumerate(zip(distances, indices)):
                     if isinstance(dists, np.ndarray):
@@ -603,7 +603,7 @@ def make_armature(
                     else:
                         # Single neighbor
                         transferred_skin[i] = source_skin[int(idxs)]
-                
+
                 # Normalize weights
                 row_sums = transferred_skin.sum(axis=1, keepdims=True)
                 row_sums[row_sums == 0] = 1.0  # Avoid division by zero
@@ -615,15 +615,15 @@ def make_armature(
                 tree = cKDTree(source_vertices)
                 _, indices = tree.query(n_vertices, k=1)
                 transferred_skin = source_skin[indices.flatten()] if hasattr(indices, 'flatten') else source_skin[indices]
-            
+
             success = False
-        
+
         # Recompute argsorted and vertex_group_reweight for transferred skin
         transferred_argsorted = np.argsort(-transferred_skin, axis=1)
         transferred_vertex_group_reweight = transferred_skin[np.arange(transferred_skin.shape[0])[..., None], transferred_argsorted]
         transferred_vertex_group_reweight = transferred_vertex_group_reweight / transferred_vertex_group_reweight[..., :group_per_vertex].sum(axis=1)[...,None]
         transferred_vertex_group_reweight = np.nan_to_num(transferred_vertex_group_reweight)
-        
+
         # Apply transferred weights
         for v in range(len(n_vertices)):
             for ii in range(group_per_vertex):
@@ -634,9 +634,9 @@ def make_armature(
                 if n not in ob.vertex_groups:
                     continue
                 ob.vertex_groups[n].add([v], transferred_vertex_group_reweight[v, ii], 'REPLACE')
-        
+
         print(f"[Info] Robust transfer completed successfully for {ob.name}")
-        
+
         armature.select_set(False)
         ob.select_set(False)
     armature.parent = local_parent
@@ -663,7 +663,7 @@ def merge(
         return
     for c in bpy.data.armatures:
         bpy.data.armatures.remove(c)
-    
+
     bones = np.concatenate([joints, tails], axis=1)
     # if the result is weired, orientation may be wrong
     make_armature(
@@ -675,7 +675,7 @@ def merge(
         group_per_vertex=4,
         add_root=add_root,
     )
-    
+
     dirpath = os.path.dirname(output_path)
     if dirpath != '':
         os.makedirs(dirpath, exist_ok=True)
@@ -771,7 +771,7 @@ def transfer(source: str, target: str, output: str, add_root: bool=False):
 
 if __name__ == "__main__":
     args = parse()
-    
+
     if args.source is not None or args.target is not None:
         assert args.source is not None and args.target is not None
         transfer(args.source, args.target, args.output, args.add_root)
@@ -790,10 +790,10 @@ if __name__ == "__main__":
 
     input_dataset_dir   = data_config.input_dataset_dir
     dataset_name        = data_config.output_dataset_dir
-    
+
     skin_output_dataset_dir = skin_config.writer.output_dir
     skin_name               = skin_config.writer.export_npz
-    
+
     skeleton_output_dataset_dir = skeleton_config.writer.output_dir
     skeleton_name               = skeleton_config.writer.export_npz
 
@@ -819,11 +819,11 @@ if __name__ == "__main__":
                 suffix = file.split('.')[-1]
                 # remove suffix
                 file_name = '.'.join(file_name.split('.')[:-1])
-                
+
                 skin_path = make_path(skin_output_dataset_dir, dataset_name, root, os.path.join(file_name, skin_name+'.npz'))
                 skeleton_path = make_path(skeleton_output_dataset_dir, dataset_name, root, os.path.join(file_name, skeleton_name+'.npz'))
                 merge_path = make_path(merge_dir, dataset_name, root, os.path.join(file_name, merge_name+"."+suffix))
-                
+
                 # check if inference result exists
                 if os.path.exists(skin_path) and os.path.exists(skeleton_path):
                     files.append((os.path.join(root, file), skin_path, skeleton_path, merge_path))
@@ -835,7 +835,7 @@ if __name__ == "__main__":
     end = gap * (id + 1)
     if id+1==num_runs:
         end = num_files
-    
+
     files = sorted(files)
     if end!=-1:
         files = files[:end]
@@ -845,10 +845,10 @@ if __name__ == "__main__":
         skin_path = file[1]
         skeleton_path = file[2]
         merge_file = file[3]
-        
+
         raw_skin = RawSkin.load(path=skin_path)
         raw_data = RawData.load(path=skeleton_path)
-        
+
         try:
             merge(
                 path=origin_file,

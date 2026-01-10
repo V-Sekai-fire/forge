@@ -39,4 +39,3 @@ When installing via `uv_init`, the following are required:
 - Python ctypes (included in standard library)
 
 The build happens automatically during `pip install` or `uv pip install`.
-

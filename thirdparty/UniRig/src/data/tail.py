@@ -13,13 +13,13 @@ class TailConfig(ConfigSpec):
     '''
     Config to handle tails.
     '''
-    
+
     # copy joints to tails
     copy_joint_to_tail: bool
-    
+
     # if the joint has only one son, then connect tail to son's joint
     connect_tail_to_unique_son: bool
-    
+
     @classmethod
     def parse(cls, config) -> 'TailConfig':
         cls.check_keys(config)
@@ -29,10 +29,10 @@ class TailConfig(ConfigSpec):
         )
 
 class Tail():
-    
+
     def __init__(self, config: TailConfig):
         self.config = config
-    
+
     def process_tail(self, asset: Asset):
         if self.config.copy_joint_to_tail:
             asset.tails = asset.joints.copy()

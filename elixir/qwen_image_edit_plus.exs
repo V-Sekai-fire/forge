@@ -525,7 +525,7 @@ defmodule QwenImageEdit.Impl do
       OpenTelemetry.Tracer.set_attribute("prompt.length", String.length(prompt))
 
       base_dir = Path.expand(".")
-      
+
       # Choose model directory and repo based on quantization
       {qwen_weights_dir, repo_id} = if use_4bit do
         {
@@ -831,12 +831,12 @@ if device == "cuda":
             allocated = torch.cuda.memory_allocated(0) / (1024**3)  # GB
             reserved = torch.cuda.memory_reserved(0) / (1024**3)  # GB
             total = torch.cuda.get_device_properties(0).total_memory / (1024**3)  # GB
-            
+
             # Calculate free memory (use max to avoid negative values)
             # Reserved includes cached allocations, so actual free might be less
             free_estimate = max(0, total - reserved)
             free_actual = max(0, total - allocated)
-            
+
             print(f"[INFO] GPU Memory Status:")
             print(f"  Total GPU Memory: {total:.2f} GB")
             print(f"  Allocated: {allocated:.2f} GB ({allocated/total*100:.1f}%)")
@@ -855,20 +855,20 @@ with torch.inference_mode():
     # Prepare generator
     generator = torch.Generator(device=device)
     generator.manual_seed(0)  # Use fixed seed for reproducibility
-    
+
     # Map go_fast to num_inference_steps
     # go_fast=True means fewer steps (faster), go_fast=False means more steps (higher quality)
     if go_fast:
         num_inference_steps = 20  # Faster inference
     else:
         num_inference_steps = 40  # Default from Hugging Face example for 2509
-    
+
     # Call pipeline with Qwen-Image-Edit-2509 API
     # API: image (list), prompt, generator, true_cfg_scale, negative_prompt, num_inference_steps, guidance_scale, num_images_per_prompt
     print(f"[INFO] Starting inference with {num_inference_steps} steps...")
     print("[INFO] This may take several minutes. Please wait...")
     sys.stdout.flush()
-    
+
     # Prepare pipeline kwargs
     pipeline_kwargs = {
         "image": input_images,  # Pass as list (supports 1-3 images)
@@ -880,7 +880,7 @@ with torch.inference_mode():
         "guidance_scale": 1.0,  # Default from Hugging Face example for 2509
         "num_images_per_prompt": 1,
     }
-    
+
     # Try to add callback if supported
     try:
         # Check if callback parameter is supported
@@ -893,7 +893,7 @@ with torch.inference_mode():
                     print(f"[PROGRESS] Step {step_index + 1}/{num_inference_steps} ({progress}%)")
                     sys.stdout.flush()
                 return callback_kwargs
-            
+
             # Try callback_on_step_end first (newer API)
             if 'callback_on_step_end' in sig.parameters:
                 pipeline_kwargs["callback_on_step_end"] = progress_callback
@@ -904,7 +904,7 @@ with torch.inference_mode():
     except Exception as e:
         print(f"[INFO] Could not enable progress callbacks: {e}")
         sys.stdout.flush()
-    
+
     try:
         output = pipe(**pipeline_kwargs)
         print("[OK] Inference completed successfully")
@@ -1061,4 +1061,3 @@ end
 
 # Display OpenTelemetry trace summary for performance debugging - save to output directory
 SpanCollector.display_trace("output")
-

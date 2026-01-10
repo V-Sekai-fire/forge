@@ -15,25 +15,25 @@ from ..data.order import OrderConfig, Order, get_order
 class TokenizerConfig():
     # which tokenizer to use
     method: str
-    
+
     # coord discrete
     num_discrete: int
-    
+
     # normalization range
     continuous_range: Tuple[float, float]
-    
+
     # cls token id
     cls_token_id: Dict[str, int]
-    
+
     # parts token id
     parts_token_id: Dict[str, int]
-    
+
     order_config: Union[OrderConfig, None]
-    
+
     @staticmethod
     def parse(config) -> 'TokenizerConfig':
         order_config = config.get('order_config', None)
-        
+
         return TokenizerConfig(
             method=config.method,
             num_discrete=config.num_discrete,
@@ -46,25 +46,25 @@ class TokenizerConfig():
 class TokenizeInput():
     # (J, 6), (parent position, position)
     bones: ndarray
-    
+
     # (J, 3), tails of bones(this is an attribute to indicate direction, not bones[i, 3:6]). Should NOT be used for non-leaf joints.
     tails: Union[ndarray, None]
-    
+
     # (B, J), bool, whether there is a branch, always False for root
     branch: ndarray
-    
+
     # (J), bool, whether the bone is a leaf node (has no child)
     is_leaf: ndarray
-    
+
     # (B, J), bool, whether the bone has skin
     no_skin: Union[ndarray, None]
-    
+
     # string of class in tokenizer
     cls: Union[str, None]
-    
+
     # Part token added before the i-th bone. If parts_bias[i] is None, a spring token will be added.
     parts_bias: Dict[int, Union[str, None]]
-    
+
     @property
     def num_bones(self):
         return self.bones.shape[0]
@@ -76,44 +76,44 @@ class DetokenizeOutput(Exporter):
 
     # (J, 6), (parent position, position)
     bones: ndarray
-    
+
     # (J), parent of each bone
     parents: List[Union[int, None]]
-    
+
     # (J, 3), tails of bones(this is an attribute to indicate direction, not bones[i, 3:6])
     tails: Union[ndarray, None]
-    
+
     # (B, J), bool, whether the bone has skin
     no_skin: Union[ndarray, None]
-    
+
     # string of class in tokenizer
     cls: Union[str, None]
-    
+
     # part names in order
     parts: List[str]
-    
+
     # names of joints
     names: Union[None, List[str]]
-    
+
     # normalization cube
     continuous_range: Tuple[float, float]
-    
+
     @property
     def joints(self):
         return self.bones[:, 3:]
-    
+
     @property
     def p_joints(self):
         return self.bones[:, :3]
-    
+
     @property
     def num_bones(self):
-        return self.bones.shape[0]    
-    
+        return self.bones.shape[0]
+
     @property
     def J(self):
         return self.bones.shape[0]
-    
+
     def _get_parents(self) -> List[Union[int, None]]:
         parents = []
         for (i, bone) in enumerate(self.bones):
@@ -127,15 +127,15 @@ class DetokenizeOutput(Exporter):
                     dis = n_dis
             parents.append(pid)
         return parents
-    
+
     def export_skeleton(self, path: str):
         parents = self._get_parents()
         self._export_skeleton(joints=self.bones[:, 3:], parents=parents, path=path)
-    
+
     def export_bones(self, path: str):
         assert self.tails is not None, 'tails is None, cannot exporrt bones'
         self._export_bones(bones=np.concatenate([self.bones[:, 3:], self.tails], axis=-1), path=path)
-    
+
     def export_skeleton_sequence(self, path: str):
         parents = self._get_parents()
         self._export_skeleton_sequence(joints=self.bones[:, 3:], parents=parents, path=path)
@@ -155,22 +155,22 @@ class TokenizerSpec(ABC):
 
     def detokenize(self, ids: ndarray, **kwargs) -> DetokenizeOutput:
         raise NotImplementedError("{} has no method 'detokenize'".format(type(self).__name__))
-    
+
     @abstractmethod
     def get_require_parts(self) -> List[str]:
         """All parts token names"""
         pass
-    
+
     @abstractmethod
     def cls_name_to_token(self, cls: str) -> int:
         """Cls name to token"""
         pass
-    
+
     @abstractmethod
     def part_name_to_token(self, part: str) -> int:
         """Part name to token"""
         pass
-    
+
     @property
     @abstractmethod
     def vocab_size(self):
@@ -180,7 +180,7 @@ class TokenizerSpec(ABC):
     @property
     def pad(self):
         raise NotImplementedError("{} has no attribute 'pad'".format(type(self).__name__))
-    
+
     @property
     def bos(self):
         raise NotImplementedError("{} has no attribute 'bos'".format(type(self).__name__))
@@ -192,15 +192,15 @@ class TokenizerSpec(ABC):
     @property
     def num_discrete(self):
         raise NotImplementedError("{} has no attribute 'num_discrete'".format(type(self).__name__))
-    
+
     @property
     @abstractmethod
     def continuous_range(self) -> Tuple[float, float]:
         pass
-    
+
     def next_posible_token(self, ids: ndarray) -> List[int]:
         pass
-    
+
     def bones_in_sequence(self, ids: ndarray) -> int:
         pass
 
@@ -217,21 +217,21 @@ def make_skeleton(
     '''
     Args:
         joints: heads of bones
-        
+
         p_joints: parent position of joints
-        
+
         tails_dict: tail position of the i-th joint
-        
+
         convert_leaf_bones_to_tails: remove leaf bones and make them tails of their parents
-        
+
         extrude_tail_for_leaf: add a tail for leaf bone
-        
+
         extrude_tail_for_branch: add a tail for joint with multiple children
-        
+
         extrude_scale: length scale of tail offset
-        
+
         strict: if true, raise error when there are joints in the same location
-        
+
     Returns:
         bones, tails, available_bones_id, parents
     '''
@@ -256,13 +256,13 @@ def make_skeleton(
         bones.append(np.concatenate([joints[pid], joint]))
         parents.append(pid)
     bones = np.stack(bones)
-    
+
     children = defaultdict(list)
     for (i, pid) in enumerate(parents):
         if pid is None:
             continue
         children[pid].append(i)
-    
+
     available_bones_id = []
     if convert_leaf_bones_to_tails:
         for (i, pid) in enumerate(parents):
@@ -272,7 +272,7 @@ def make_skeleton(
             tails_dict[pid] = bones[i, 3:]
     else:
         available_bones_id = [i for i in range(bones.shape[0])]
-    
+
     # tail for leaf
     for (i, pid) in enumerate(parents):
         if len(children[i]) != 0:
@@ -287,7 +287,7 @@ def make_skeleton(
             tails_dict[i] = bones[i, 3:] + d * extrude_scale
         else:
             tails_dict[i] = bones[i, 3:]
-    
+
     # tail for branch
     for (i, pid) in enumerate(parents):
         if len(children[i]) <= 1:
@@ -309,14 +309,14 @@ def make_skeleton(
             tails_dict[i] = bones[i, 3:] + d * extrude_scale
         else:
             tails_dict[i] = bones[i, 3:]
-    
+
     # assign new tail
     for (i, pid) in enumerate(parents):
         if len(children[i]) != 1:
             continue
         child = children[i][0]
         tails_dict[i] = bones[child, 3:]
-    
+
     tails = []
     for i in range(bones.shape[0]):
         tails.append(tails_dict[i])

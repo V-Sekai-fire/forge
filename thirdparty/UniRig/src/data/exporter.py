@@ -12,12 +12,12 @@ except:
     OPEN3D_EQUIPPED = False
 
 class Exporter():
-    
+
     def _safe_make_dir(self, path):
         if os.path.dirname(path) == '':
             return
         os.makedirs(os.path.dirname(path), exist_ok=True)
-    
+
     def _export_skeleton(self, joints: ndarray, parents: List[Union[int, None]], path: str):
         format = path.split('.')[-1]
         assert format in ['obj']
@@ -40,10 +40,10 @@ class Exporter():
                     f"v {ex} {ez} {-ey + 0.00001}\n"
                 ])
             file.writelines(_joints)
-            
+
             _faces = [f"f {id*3+1} {id*3+2} {id*3+3}\n" for id in range(J)]
             file.writelines(_faces)
-    
+
     def _export_bones(self, bones: ndarray, path: str):
         format = path.split('.')[-1]
         assert format in ['obj']
@@ -63,10 +63,10 @@ class Exporter():
                     f"v {ex} {ez} {-ey + 0.00001}\n"
                 ])
             file.writelines(_joints)
-            
+
             _faces = [f"f {id*3+1} {id*3+2} {id*3+3}\n" for id in range(J)]
             file.writelines(_faces)
-    
+
     def _export_skeleton_sequence(self, joints: ndarray, parents: List[Union[int, None]], path: str):
         format = path.split('.')[-1]
         assert format in ['obj']
@@ -90,11 +90,11 @@ class Exporter():
                     f"v {ex} {ez} {-ey + 0.00001}\n"
                 ])
             file.writelines(_joints)
-            
+
             _faces = [f"f {id*3+1} {id*3+2} {id*3+3}\n" for id in range(J)]
             file.writelines(_faces)
             file.close()
-    
+
     def _export_mesh(self, vertices: ndarray, faces: ndarray, path: str):
         format = path.split('.')[-1]
         assert format in ['obj', 'ply']
@@ -120,7 +120,7 @@ class Exporter():
             for face in faces:
                 _faces.append(f"f {face[0]+1} {face[1]+1} {face[2]+1}\n")
             file.writelines(_faces)
-            
+
     def _export_pc(self, vertices: ndarray, path: str, vertex_normals: Union[ndarray, None]=None, normal_size: float=0.01):
         if path.endswith('.ply'):
             if vertex_normals is not None:
@@ -159,7 +159,7 @@ class Exporter():
                         f"f {i*3+1} {i*3+2} {i*3+3}\n",
                     ])
                 nfile.writelines(_normal)
-    
+
     def _make_armature(
         self,
         vertices: Union[ndarray, None],
@@ -179,11 +179,11 @@ class Exporter():
     ):
         import bpy # type: ignore
         from mathutils import Vector # type: ignore
-        
+
         # make collection
         collection = bpy.data.collections.new('new_collection')
         bpy.context.scene.collection.children.link(collection)
-        
+
         # make mesh
         if vertices is not None:
             mesh = bpy.data.meshes.new('mesh')
@@ -191,18 +191,18 @@ class Exporter():
                 faces = []
             mesh.from_pydata(vertices, [], faces)
             mesh.update()
-        
+
             # make object from mesh
             object = bpy.data.objects.new('character', mesh)
-        
+
             # add object to scene collection
             collection.objects.link(object)
-        
+
         # deselect mesh
         bpy.ops.object.armature_add(enter_editmode=True)
         armature = bpy.data.armatures.get('Armature')
         edit_bones = armature.edit_bones
-        
+
         J = joints.shape[0]
         if tails is None:
             tails = joints.copy()
@@ -230,7 +230,7 @@ class Exporter():
                         tails[i] = joints[child]
                     if parents[i] is not None and len(children[parents[i]]) == 1:
                         connects[i] = True
-        
+
         if add_root:
             bone_root = edit_bones.get('Bone')
             bone_root.name = 'Root'
@@ -240,7 +240,7 @@ class Exporter():
             bone_root.name = names[0]
             bone_root.head = Vector((joints[0, 0], joints[0, 1], joints[0, 2]))
             bone_root.tail = Vector((joints[0, 0], joints[0, 1], joints[0, 2] + extrude_size))
-        
+
         def extrude_bone(
             edit_bones,
             name: str,
@@ -258,7 +258,7 @@ class Exporter():
             bone.use_connect = connect
             assert not np.isnan(head).any(), f"nan found in head of bone {name}"
             assert not np.isnan(tail).any(), f"nan found in tail of bone {name}"
-        
+
         for i in range(J):
             if add_root is False and i==0:
                 continue
@@ -269,7 +269,7 @@ class Exporter():
             bone = edit_bones.get(names[i])
             bone.head = Vector((joints[i, 0], joints[i, 1], joints[i, 2]))
             bone.tail = Vector((tails[i, 0], tails[i, 1], tails[i, 2]))
-        
+
         if vertices is None or skin is None:
             return
         # must set to object mode to enable parent_set
@@ -323,7 +323,7 @@ class Exporter():
             bpy.data.objects.remove(c)
         for c in bpy.data.textures:
             bpy.data.textures.remove(c)
-    
+
     def _export_fbx(
         self,
         path: str,
@@ -364,10 +364,10 @@ class Exporter():
             extrude_from_parent=extrude_from_parent,
             tails=tails,
         )
-        
+
         # always enable add_leaf_bones to keep leaf bones
         bpy.ops.export_scene.fbx(filepath=path, check_existing=False, add_leaf_bones=False)
-    
+
     def _export_render(
         self,
         path: str,
@@ -379,7 +379,7 @@ class Exporter():
         import bpy # type: ignore
         import bpy_extras # type: ignore
         from mathutils import Vector # type: ignore
-        
+
         self._safe_make_dir(path)
         # normalize into [-1, 1]^3
         # copied from augment
@@ -393,33 +393,33 @@ class Exporter():
         bounds = np.concatenate(bounds, axis=0)
         bound_min = bounds.min(axis=0)
         bound_max = bounds.max(axis=0)
-        
+
         trans_vertex = np.eye(4)
-        
+
         trans_vertex = _trans_to_m(-(bound_max + bound_min)/2) @ trans_vertex
-        
+
         # scale into the cube [-1, 1]
         scale = np.max((bound_max - bound_min) / 2)
         trans_vertex = _scale_to_m(1. / scale) @ trans_vertex
-        
+
         def _apply(v: ndarray, trans: ndarray) -> ndarray:
             return np.matmul(v, trans[:3, :3].transpose()) + trans[:3, 3]
-        
+
         if vertices is not None:
             vertices = _apply(vertices, trans_vertex)
         if bones is not None:
             bones[:, :3] = _apply(bones[:, :3], trans_vertex)
             bones[:, 3:] = _apply(bones[:, 3:], trans_vertex)
-        
+
         # bpy api calls
         self._clean_bpy()
         bpy.context.scene.render.engine = 'BLENDER_WORKBENCH'
         bpy.context.scene.render.film_transparent = True
         bpy.context.scene.display.shading.background_type = 'VIEWPORT'
-        
+
         collection = bpy.data.collections.new('new_collection')
         bpy.context.scene.collection.children.link(collection)
-        
+
         if vertices is not None:
             mesh_data = bpy.data.meshes.new(name="MeshData")
             mesh_obj = bpy.data.objects.new(name="MeshObject", object_data=mesh_data)
@@ -432,7 +432,7 @@ class Exporter():
             direction = point - camera.location
             rot_quat = direction.to_track_quat('-Z', 'Y')
             camera.rotation_euler = rot_quat.to_euler()
-        
+
         bpy.ops.object.camera_add(location=(4, -4, 2.5))
         camera = bpy.context.object
         camera.data.angle = np.radians(25.0)
@@ -451,7 +451,7 @@ class Exporter():
             from PIL import Image, ImageDraw
             img_pil = Image.open(path).convert("RGBA")
             draw = ImageDraw.Draw(img_pil)
-            
+
             from bpy_extras.image_utils import load_image  # type: ignore
             bpy.context.scene.use_nodes = True
             nodes = bpy.context.scene.node_tree.nodes

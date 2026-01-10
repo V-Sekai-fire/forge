@@ -15,10 +15,10 @@ from .utils import axis_angle_to_matrix
 class AugmentDropPartConfig(ConfigSpec):
     # probability
     p: float
-    
+
     # drop rate
     rate: float
-    
+
     @classmethod
     def parse(cls, config) -> Union['AugmentDropPartConfig', None]:
         if config is None:
@@ -33,13 +33,13 @@ class AugmentDropPartConfig(ConfigSpec):
 class AugmentJointDiscreteConfig(ConfigSpec):
     # perturb the skeleton with probability p
     p: float
-    
+
     # num of discretized coord
     discrete: int
-    
+
     # continuous range
     continuous_range: Tuple[float, float]
-    
+
     @classmethod
     def parse(cls, config) -> Union['AugmentJointDiscreteConfig', None]:
         if config is None:
@@ -55,13 +55,13 @@ class AugmentJointDiscreteConfig(ConfigSpec):
 class AugmentJointPerturbConfig(ConfigSpec):
     # perturb the skeleton with probability p
     p: float
-    
+
     # jitter sigma on joints
     sigma: float
-    
+
     # jitter clip on joints
     clip: float
-    
+
     @classmethod
     def parse(cls, config) -> Union['AugmentJointPerturbConfig', None]:
         if config is None:
@@ -77,13 +77,13 @@ class AugmentJointPerturbConfig(ConfigSpec):
 class AugmentCollapseConfig(ConfigSpec):
     # collapse the skeleton with probability p
     p: float
-    
+
     # probability to merge the bone
     rate: float
-    
+
     # max bones
     max_bones: int
-    
+
     @classmethod
     def parse(cls, config) -> Union['AugmentCollapseConfig', None]:
         if config is None:
@@ -99,13 +99,13 @@ class AugmentCollapseConfig(ConfigSpec):
 class AugmentLBSConfig(ConfigSpec):
     # apply a random pose with probability p
     random_pose_p: float
-    
+
     # random pose angle range
     random_pose_angle: float
-    
+
     # if true, add an additional random pose matrix for skinning loss calculation
     pose_for_skin: bool
-    
+
     @classmethod
     def parse(cls, config) -> Union['AugmentLBSConfig', None]:
         if config is None:
@@ -121,43 +121,43 @@ class AugmentLBSConfig(ConfigSpec):
 class AugmentLinearConfig(ConfigSpec):
     # apply random rotation with probability p
     random_rotate_p: float
-    
+
     # random rotation angle(degree)
     random_rotate_angle: float
-    
+
     # swap x with probability p
     random_flip_x_p: float
-    
+
     # swap y with probability p
     random_flip_y_p: float
-    
+
     # swap z with probability p
     random_flip_z_p: float
-    
+
     # probability to pick an angle in static_rotate_x
     static_rotate_x_p: float
-    
+
     # rotate around x axis among given angles(degrees)
     static_rotate_x: List[float]
-    
+
     # probability to pick an angle in static_rotate_y
     static_rotate_y_p: float
-    
+
     # rotate around y axis among given angles(degrees)
     static_rotate_y: List[float]
-    
+
     # probability to pick an angle in static_rotate_z
     static_rotate_z_p: float
-    
+
     # rotate around z axis among given angles(degrees)
     static_rotate_z: List[float]
-    
+
     # apply random scaling with probability p
     random_scale_p: float
-    
+
     # random scaling xyz axis
     random_scale: Tuple[float, float]
-    
+
     @classmethod
     def parse(cls, config) -> Union['AugmentLinearConfig', None]:
         if config is None:
@@ -188,16 +188,16 @@ class AugmentAffineConfig(ConfigSpec):
 
     # randomly scale coordinates with probability p
     random_scale_p: float
-    
+
     # scale range (lower, upper)
     random_scale: Tuple[float, float]
-    
+
     # randomly shift coordinates with probability p
     random_shift_p: float
-    
+
     # shift range (lower, upper)
     random_shift: Tuple[float, float]
-    
+
     @classmethod
     def parse(cls, config) -> Union['AugmentAffineConfig', None]:
         if config is None:
@@ -215,19 +215,19 @@ class AugmentAffineConfig(ConfigSpec):
 class AugmentJitterConfig(ConfigSpec):
     # probability
     p: float
-    
+
     # jitter sigma on vertices
     vertex_sigma: float
-    
+
     # jitter clip on vertices
     vertex_clip: float
-    
+
     # jitter sigma on normals
     normal_sigma: float
-    
+
     # jitter clip on normals
     normal_clip: float
-    
+
     @classmethod
     def parse(cls, config) -> Union['AugmentJitterConfig', None]:
         if config is None:
@@ -245,7 +245,7 @@ class AugmentJitterConfig(ConfigSpec):
 class AugmentConfig(ConfigSpec):
     '''
     Config to handle final easy augmentation of vertices, normals and bones before sampling.
-    '''    
+    '''
     augment_collapse_config: Union[AugmentCollapseConfig, None]
     augment_lbs_config: Union[AugmentLBSConfig, None]
     augment_linear_config: Union[AugmentLinearConfig, None]
@@ -254,7 +254,7 @@ class AugmentConfig(ConfigSpec):
     augment_joint_perturb_config: Union[AugmentJointPerturbConfig, None]
     augment_joint_discrete_config: Union[AugmentJointDiscreteConfig, None]
     augment_drop_part_config: Union[AugmentDropPartConfig, None]
-    
+
     @classmethod
     def parse(cls, config) -> 'AugmentConfig':
         cls.check_keys(config)
@@ -275,7 +275,7 @@ class Augment(ABC):
     '''
     def __init__(self):
         pass
-    
+
     @abstractmethod
     def transform(self, asset: Asset, **kwargs):
         pass
@@ -306,7 +306,7 @@ class AugmentDropPart(Augment):
             if id_to_name[i] in names and id_to_name[p] not in names:
                 names.append(id_to_name[p])
         asset.drop_part(keep=names)
-    
+
     def inverse(self, asset: Asset):
         pass
 
@@ -335,7 +335,7 @@ class AugmentCollapse(Augment):
         elif asset.J > self.config.max_bones:
             keep = select_k(asset.names, self.config.max_bones)
             asset.collapse(keep=keep)
-    
+
     def inverse(self, asset: Asset):
         pass
 
@@ -386,7 +386,7 @@ class AugmentJointDiscrete(Augment):
                     self.config.continuous_range,
                     self.config.discrete,
                 )
-    
+
     def inverse(self, asset: Asset):
         pass
 
@@ -408,7 +408,7 @@ class AugmentJointPerturb(Augment):
                     -self.config.clip,
                     self.config.clip,
                 )
-    
+
     def inverse(self, asset: Asset):
         pass
 
@@ -424,7 +424,7 @@ class AugmentLBS(Augment):
         def get_matrix_basis(angle: float):
             matrix = axis_angle_to_matrix((np.random.rand(asset.J, 3) - 0.5) * angle / 180 * np.pi * 2).astype(np.float32)
             return matrix
-        
+
         if np.random.rand() < self.config.random_pose_p:
             matrix_basis = get_matrix_basis(self.config.random_pose_angle)
             asset.apply_matrix_basis(matrix_basis=matrix_basis)
@@ -432,12 +432,12 @@ class AugmentLBS(Augment):
             matrix_basis = get_matrix_basis(self.config.random_pose_angle)
             pose_matrix = asset.get_matrix(matrix_basis=matrix_basis)
             asset.pose_matrix = pose_matrix
-    
+
     def inverse(self, asset: Asset):
         pass
 
 class AugmentLinear(Augment):
-    
+
     def __init__(self, config: AugmentLinearConfig):
         super().__init__()
         self.config = config
@@ -454,7 +454,7 @@ class AugmentLinear(Augment):
             r = R.from_rotvec(axis_angle).as_matrix()
             r = np.pad(r, ((0, 1), (0, 1)), 'constant', constant_values=0.)
             r[3, 3] = 1.
-        
+
         if np.random.uniform(0, 1) < self.config.random_flip_x_p:
             r @= np.array([
                 [-1.0, 0.0, 0.0, 0.0],
@@ -462,7 +462,7 @@ class AugmentLinear(Augment):
                 [ 0.0, 0.0, 1.0, 0.0],
                 [ 0.0, 0.0, 0.0, 1.0],
             ])
-        
+
         if np.random.uniform(0, 1) < self.config.random_flip_y_p:
             r @= np.array([
                 [1.0,  0.0, 0.0, 0.0],
@@ -470,7 +470,7 @@ class AugmentLinear(Augment):
                 [0.0,  0.0, 1.0, 0.0],
                 [0.0,  0.0, 0.0, 1.0],
             ])
-        
+
         if np.random.uniform(0, 1) < self.config.random_flip_z_p:
             r @= np.array([
                 [1.0, 0.0,  0.0, 0.0],
@@ -478,7 +478,7 @@ class AugmentLinear(Augment):
                 [0.0, 0.0, -1.0, 0.0],
                 [0.0, 0.0,  0.0, 1.0],
             ])
-        
+
         if np.random.uniform(0, 1) < self.config.static_rotate_x_p:
             assert len(self.config.static_rotate_x) > 0, "static rotation of x is enabled, but static_rotate_x is empty"
             angle = np.random.choice(self.config.static_rotate_x) / 180 * np.pi
@@ -490,7 +490,7 @@ class AugmentLinear(Augment):
                 [ 0.0,  -s,   c, 0.0],
                 [ 0.0, 0.0, 0.0, 1.0],
             ])
-        
+
         if np.random.uniform(0, 1) < self.config.static_rotate_y_p:
             assert len(self.config.static_rotate_y) > 0, "static rotation of y is enabled, but static_rotate_y is empty"
             angle = np.random.choice(self.config.static_rotate_y) / 180 * np.pi
@@ -502,7 +502,7 @@ class AugmentLinear(Augment):
                 [   s, 0.0,   c, 0.0],
                 [ 0.0, 0.0, 0.0, 1.0],
             ])
-        
+
         if np.random.uniform(0, 1) < self.config.static_rotate_z_p:
             assert len(self.config.static_rotate_z) > 0, "static rotation of z is enabled, but static_rotate_z is empty"
             angle = np.random.choice(self.config.static_rotate_z) / 180 * np.pi
@@ -514,7 +514,7 @@ class AugmentLinear(Augment):
                 [ 0.0, 0.0, 1.0, 0.0],
                 [ 0.0, 0.0, 0.0, 1.0],
             ])
-        
+
         if np.random.uniform(0, 1) < self.config.random_scale_p:
             scale_x = np.random.uniform(self.config.random_scale[0], self.config.random_scale[1])
             scale_y = np.random.uniform(self.config.random_scale[0], self.config.random_scale[1])
@@ -525,17 +525,17 @@ class AugmentLinear(Augment):
                 [0.0, 0.0, scale_z, 0.0],
                 [0.0, 0.0, 0.0, 1.0],
             ])
-        
+
         trans_vertex = r @ trans_vertex
-        
+
         # apply transform here
         self.trans_vertex = trans_vertex
         asset.vertices = self._apply(asset.vertices, self.trans_vertex)
-        
+
         mesh = trimesh.Trimesh(vertices=asset.vertices, faces=asset.faces, process=False)
         asset.vertex_normals = mesh.vertex_normals.copy()
         asset.face_normals = mesh.face_normals.copy()
-        
+
         if asset.matrix_local is not None:
             asset.matrix_local = trans_vertex @ asset.matrix_local
         if asset.pose_matrix is not None:
@@ -544,22 +544,22 @@ class AugmentLinear(Augment):
             asset.joints = self._apply(asset.joints, self.trans_vertex)
         if asset.tails is not None:
             asset.tails = self._apply(asset.tails, self.trans_vertex)
-            
+
         # normalize normals
         # Add small epsilon to avoid division by zero
         epsilon = 1e-10
         vertex_norms = np.linalg.norm(asset.vertex_normals, axis=1, keepdims=True)
         vertex_norms = np.maximum(vertex_norms, epsilon)  # Ensure no zeros
         asset.vertex_normals = asset.vertex_normals / vertex_norms
-        
+
         face_norms = np.linalg.norm(asset.face_normals, axis=1, keepdims=True)
         face_norms = np.maximum(face_norms, epsilon)  # Ensure no zeros
         asset.face_normals = asset.face_normals / face_norms
-        
+
         # Clean up any remaining NaN or Inf values
         asset.vertex_normals = np.nan_to_num(asset.vertex_normals, nan=0., posinf=0., neginf=0.)
         asset.face_normals = np.nan_to_num(asset.face_normals, nan=0., posinf=0., neginf=0.)
-        
+
     def inverse(self, asset: Asset):
         m = np.linalg.inv(self.trans_vertex)
         asset.vertices = self._apply(asset.vertices, m)
@@ -569,7 +569,7 @@ class AugmentLinear(Augment):
             asset.tails = self._apply(asset.tails, m)
 
 class AugmentAffine(Augment):
-    
+
     def __init__(self, config: AugmentAffineConfig):
         super().__init__()
         self.config = config
@@ -582,22 +582,22 @@ class AugmentAffine(Augment):
         bound_max = asset.vertices.max(axis=0)
         if asset.joints is not None:
             joints_bound_min = asset.joints.min(axis=0)
-            joints_bound_max = asset.joints.max(axis=0)            
+            joints_bound_max = asset.joints.max(axis=0)
             bound_min = np.minimum(bound_min, joints_bound_min)
             bound_max = np.maximum(bound_max, joints_bound_max)
-        
+
         trans_vertex = np.eye(4, dtype=np.float32)
-        
+
         trans_vertex = _trans_to_m(-(bound_max + bound_min)/2) @ trans_vertex
-        
+
         # scale into the cube
         normalize_into = self.config.normalize_into
         scale = np.max((bound_max - bound_min) / (normalize_into[1] - normalize_into[0]))
         trans_vertex = _scale_to_m(1. / scale) @ trans_vertex
-        
+
         bias = (normalize_into[0] + normalize_into[1]) / 2
         trans_vertex = _trans_to_m(np.array([bias, bias, bias], dtype=np.float32)) @ trans_vertex
-        
+
         if np.random.rand() < self.config.random_scale_p:
             scale = _scale_to_m(np.random.uniform(self.config.random_scale[0], self.config.random_scale[1]))
             trans_vertex = scale @ trans_vertex
@@ -606,7 +606,7 @@ class AugmentAffine(Augment):
             l, r = self.config.random_shift
             shift = _trans_to_m(np.array([np.random.uniform(l, r), np.random.uniform(l, r), np.random.uniform(l, r)]))
             trans_vertex = shift @ trans_vertex
-        
+
         asset.vertices = self._apply(asset.vertices, trans_vertex)
         # do not affect scale in matrix
         if asset.matrix_local is not None:
@@ -618,9 +618,9 @@ class AugmentAffine(Augment):
             asset.joints = self._apply(asset.joints, trans_vertex)
         if asset.tails is not None:
             asset.tails = self._apply(asset.tails, trans_vertex)
-        
+
         self.trans_vertex = trans_vertex
-    
+
     def inverse(self, asset: Asset):
         m = np.linalg.inv(self.trans_vertex)
         asset.vertices = self._apply(asset.vertices, m)
@@ -630,7 +630,7 @@ class AugmentAffine(Augment):
             asset.tails = self._apply(asset.tails, m)
 
 class AugmentJitter(Augment):
-    
+
     def __init__(self, config: AugmentJitterConfig):
         super().__init__()
         self.config = config
@@ -644,7 +644,7 @@ class AugmentJitter(Augment):
         vertex_clip = self.config.vertex_clip
         normal_sigma = self.config.normal_sigma
         normal_clip = self.config.normal_clip
-        
+
         if np.random.rand() < p:
             scale = np.random.rand() + 1e-6
             vertex_sigma *= scale
@@ -655,22 +655,22 @@ class AugmentJitter(Augment):
             if vertex_sigma > 0:
                 noise = np.clip(np.random.randn(*asset.vertices.shape) * vertex_sigma, -vertex_clip, vertex_clip).astype(np.float32)
                 asset.vertices += noise
-            
+
             if normal_sigma > 0:
                 noise = np.clip(np.random.randn(*asset.vertex_normals.shape) * normal_sigma, -normal_clip, normal_clip).astype(np.float32)
                 asset.vertex_normals += noise
-                
+
                 noise = np.clip(np.random.randn(*asset.face_normals.shape) * normal_sigma, -normal_clip, normal_clip).astype(np.float32)
                 asset.face_normals += noise
-                
+
                 asset.vertex_normals = asset.vertex_normals / np.linalg.norm(asset.vertex_normals, axis=1, keepdims=True)
-                
+
                 asset.face_normals = asset.face_normals / np.linalg.norm(asset.face_normals, axis=1, keepdims=True)
-                
+
                 asset.vertex_normals = np.nan_to_num(asset.vertex_normals, nan=0., posinf=0., neginf=0.)
-                
+
                 asset.face_normals = np.nan_to_num(asset.face_normals, nan=0., posinf=0., neginf=0.)
-    
+
     def inverse(self, asset: Asset):
         pass
 

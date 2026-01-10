@@ -29,18 +29,18 @@ defmodule ArgsParser do
   def show_help do
     IO.puts("""
     NX Examples Script
-    
+
     Demonstrates basic tensor operations using NX (Numerical Elixir).
-    
+
     Usage:
       elixir nx.exs [options]
-    
+
     Options:
       --help, -h                 Show help message
-    
+
     Examples:
       elixir nx.exs
-    
+
     Note: For CUDA support, ensure the following environment variable is set:
       EXLA_TARGET=cuda12
     """)
@@ -102,4 +102,3 @@ IO.puts("")
 IO.puts("=== All Results ===")
 IO.inspect({sum, product, difference})
 IO.puts("")
-

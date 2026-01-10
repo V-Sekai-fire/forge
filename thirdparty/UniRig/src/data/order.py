@@ -11,16 +11,16 @@ class OrderConfig(ConfigSpec):
     '''
     Config to handle bones re-ordering.
     '''
-    
+
     # {skeleton_name: path}
     skeleton_path: Dict[str, str]
-    
+
     # {cls: {part_name: [bone_name_1, bone_name_2, ...]}}
     parts: Dict[str, Dict[str, List[str]]]
-    
+
     # {cls: parts of bones to be arranged in [part_name_1, part_name_2, ...]}
     parts_order: Dict[str, List[str]]
-    
+
     @classmethod
     def parse(cls, config):
         cls.check_keys(config)
@@ -39,17 +39,17 @@ class OrderConfig(ConfigSpec):
         )
 
 class Order():
-    
+
     # {part_name: [bone_name_1, bone_name_2, ...]}
     parts: Dict[str, Dict[str, List[str]]]
-    
+
     # parts of bones to be arranged in [part_name_1, part_name_2, ...]
     parts_order: Dict[str, List[str]]
-    
+
     def __init__(self, config: OrderConfig):
         self.parts          = config.parts
         self.parts_order    = config.parts_order
-    
+
     def part_exists(self, cls: str, part: str, names: List[str]) -> bool:
         '''
         Check if part exists.
@@ -60,7 +60,7 @@ class Order():
             if name not in names:
                 return False
         return True
-    
+
     def make_names(self, cls: Union[str, None], parts: List[Union[str, None]], num_bones: int) -> List[str]:
         '''
         Get names for specified cls.
@@ -75,7 +75,7 @@ class Order():
         for i in range(len(names), num_bones):
             names.append(f"bone_{i}")
         return names
-    
+
     def arrange_names(self, cls: str, names: List[str], parents: List[Union[int, None]]) -> Tuple[List[str], Dict[int, Union[str]]]:
         '''
         Arrange names according to required parts order.

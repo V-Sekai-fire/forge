@@ -22,13 +22,13 @@ class VertexGroupConfig(ConfigSpec):
     '''
     Config to sample vertex group.
     '''
-    
+
     # names
     names: List[str]
-    
+
     # kwargs
     kwargs: Dict[str, Dict]
-    
+
     @classmethod
     def parse(cls, config) -> 'VertexGroupConfig':
         cls.check_keys(config)
@@ -38,23 +38,23 @@ class VertexGroupConfig(ConfigSpec):
         )
 
 class VertexGroup(ABC):
-    
+
     @abstractmethod
     def __init__(self, **kwargs):
         pass
-    
+
     @abstractmethod
     def get_vertex_group(self, asset: Asset) -> Dict[str, ndarray]:
         pass
-    
+
 class VertexGroupSkin(VertexGroup):
     '''
     Capture skin.
     '''
-    
+
     def __init__(self, **kwargs):
         pass
-    
+
     def get_vertex_group(self, asset: Asset) -> Dict[str, ndarray]:
         return {
             'skin': asset.skin / (asset.skin.sum(axis=-1, keepdims=True) + 1e-6),
@@ -67,7 +67,7 @@ class VertexGroupGeodesicDistance(VertexGroup):
     def __init__(self, **kwargs):
         self.deterministic = kwargs.get('deterministic', False)
         self.soft_mask = kwargs.get('soft_mask', False)
-    
+
     def _prepare(
         self,
         joints: ndarray, # (J, 3)
@@ -91,7 +91,7 @@ class VertexGroupGeodesicDistance(VertexGroup):
             dis_matrix = np.minimum(dis_matrix, dis_matrix[:, k][:, np.newaxis] + dis_matrix[k, :][np.newaxis, :])
             step_matrix = np.minimum(step_matrix, step_matrix[:, k][:, np.newaxis] + step_matrix[k, :][np.newaxis, :])
         return dis_matrix, step_matrix
-    
+
     def get_vertex_group(self, asset: Asset) -> Dict[str, ndarray]:
         children = defaultdict(list)
         edges = []
@@ -131,7 +131,7 @@ class VertexGroupVoxelSkin(VertexGroup):
     '''
     Capture voxel skin.
     '''
-    
+
     def __init__(self, **kwargs):
         self.grid = kwargs.get('grid', 64)
         self.alpha = kwargs.get('alpha', 0.5)
@@ -141,20 +141,20 @@ class VertexGroupVoxelSkin(VertexGroup):
         self.grid_weight = kwargs.get('grid_weight', 3.0)
         self.mode = kwargs.get('mode', 'square')
         self.backend = kwargs.get('backend', 'pyrender')
-    
+
     def get_vertex_group(self, asset: Asset) -> Dict[str, ndarray]:
-        
+
         # normalize into [-1, 1] first
         min_vals = np.min(asset.vertices, axis=0)
         max_vals = np.max(asset.vertices, axis=0)
-        
+
         center = (min_vals + max_vals) / 2
-        
+
         scale = np.max(max_vals - min_vals) / 2
-        
+
         normalized_vertices = (asset.vertices - center) / scale
         normalized_joints = (asset.joints - center) / scale
-        
+
         grid_coords = voxelization(
             vertices=normalized_vertices,
             faces=asset.faces,
@@ -183,7 +183,7 @@ class VertexGroupMeshPartDistance(VertexGroup):
     def __init__(self, **kwargs):
         self.part_dim = kwargs['part_dim']
         self.dis_dim = kwargs['dis_dim']
-    
+
     def get_vertex_group(self, asset: Asset) -> Dict[str, ndarray]:
         tot, vertex_labels, face_labels = find_connected_components(asset.vertices, asset.faces)
         # (N, dis_dim)
@@ -204,7 +204,7 @@ class VertexGroupMeshPartDistance(VertexGroup):
 class VertexGroupMeshParts(VertexGroup):
     def __init__(self, **kwargs):
         pass
-    
+
     def get_vertex_group(self, asset: Asset) -> Dict[str, ndarray]:
         tot, vertex_labels, face_labels = find_connected_components(asset.vertices, asset.faces)
         asset.meta['num_parts'] = tot
@@ -257,7 +257,7 @@ def get_geodesic_distance(
             step_matrix[index] * scale0[r[:, np.newaxis], index[:, np.newaxis]] +
             step_matrix[child[index]] * scale1[r[:, np.newaxis], index[:, np.newaxis]]
         ) <= 1.).astype(np.float32)
-    
+
     # normalize geo dis
     row_min = np.min(res, axis=0, keepdims=True)
     row_max = np.max(res, axis=0, keepdims=True)
@@ -305,7 +305,7 @@ def voxelization(
         )
         scene = pyrender.Scene(bg_color=[0, 0, 0, 0])
         scene.add(mesh)
-        
+
         camera = pyrender.OrthographicCamera(xmag=scale, ymag=scale, znear=znear, zfar=zfar)
         camera_poses = {}
         # coordinate:
@@ -364,19 +364,19 @@ def voxelization(
             proj_depth[proj_depth<znear] = zfar
             proj_depth = znear + zfar - (znear * zfar) / proj_depth # back to origin
             depths[name] = proj_depth
-        
+
         mask_z = -grid_coords[:, 2] + depths['+z'][grid-1-grid_indices[:, 1], grid_indices[:, 0]] <= eye_dis
 
         mask_z &= grid_coords[:, 2] + depths['-z'][grid-1-grid_indices[:, 1], grid-1-grid_indices[:, 0]] <= eye_dis
-        
+
         mask_x = -grid_coords[:, 0] + depths['+x'][grid-1-grid_indices[:, 1], grid-1-grid_indices[:, 2]] <= eye_dis
-        
+
         mask_x &= grid_coords[:, 0] + depths['-x'][grid-1-grid_indices[:, 1], grid_indices[:, 2]] <= eye_dis
-        
+
         mask_y = -grid_coords[:, 1] + depths['+y'][grid_indices[:, 2], grid_indices[:, 0]] <= eye_dis
-        
+
         mask_y &= grid_coords[:, 1] + depths['-y'][grid-1-grid_indices[:, 2], grid_indices[:, 0]] <= eye_dis
-        
+
         mask = (mask_x & mask_y) | (mask_x & mask_z) | (mask_y & mask_z)
         grid_coords = grid_coords[mask]
         return grid_coords
@@ -389,40 +389,40 @@ def voxelization(
         voxel = o3d.geometry.VoxelGrid.create_from_triangle_mesh(mesh_o3d, voxel_size=voxel_size)
         origin = voxel.origin
         coords = np.array([pt.grid_index for pt in voxel.get_voxels()])
-        
+
         max_coords = np.max(coords, axis=0)
         shape = tuple(max_coords + 1)
         voxel = np.zeros(shape, dtype=bool)
         voxel[tuple(coords.T)] = True
-        
+
         grids = np.indices(voxel.shape)
         x_coord = grids[0, ...]
         y_coord = grids[1, ...]
         z_coord = grids[2, ...]
-        
+
         INF = 2147483647
         x_tmp = x_coord.copy()
         x_tmp[~voxel] = INF
         x_min = x_tmp.min(axis=0)
         x_tmp[~voxel] = -1
         x_max = x_tmp.max(axis=0)
-        
+
         y_tmp = y_coord.copy()
         y_tmp[~voxel] = INF
         y_min = y_tmp.min(axis=1)
         y_tmp[~voxel] = -1
         y_max = y_tmp.max(axis=1)
-        
+
         z_tmp = z_coord.copy()
         z_tmp[~voxel] = INF
         z_min = z_tmp.min(axis=2)
         z_tmp[~voxel] = -1
         z_max = z_tmp.max(axis=2)
-        
+
         in_x = (x_coord >= x_min[None, :, :]) & (x_coord <= x_max[None, :, :])
         in_y = (y_coord >= y_min[:, None, :]) & (y_coord <= y_max[:, None, :])
         in_z = (z_coord >= z_min[:, :, None]) & (z_coord <= z_max[:, :, None])
-        
+
         count = in_x.astype(int) + in_y.astype(int) + in_z.astype(int)
         fill_mask = count >= 2
         voxel = voxel | fill_mask
@@ -443,23 +443,23 @@ def voxel_skin(
     vertex_query: int=27,
     grid_weight: float=3.0,
     mode: str='square',
-):  
-    
+):
+
     # https://dl.acm.org/doi/pdf/10.1145/2485895.2485919
     assert mode in ['square', 'exp']
     J = joints.shape[0]
     M = grid_coords.shape[0]
     N = vertices.shape[0]
-    
+
     grid_tree = cKDTree(grid_coords)
     vertex_tree = cKDTree(vertices)
     joint_tree = cKDTree(joints)
-    
+
     # make combined vertices
     # 0   ~ N-1: mesh vertices
     # N   ~ N+M-1: grid vertices
     combined_vertices = np.concatenate([vertices, grid_coords], axis=0)
-    
+
     # link adjacent grids
     dist, idx = grid_tree.query(grid_coords, grid_query) # 3*3*3
     dist = dist[:, 1:]
@@ -468,7 +468,7 @@ def voxel_skin(
     source_grid2grid = np.repeat(np.arange(M), grid_query-1)[mask.ravel()] + N
     to_grid2grid = idx[mask] + N
     weight_grid2grid = dist[mask] * grid_weight
-    
+
     # link very close vertices
     dist, idx = vertex_tree.query(vertices, 4)
     dist = dist[:, 1:]
@@ -477,19 +477,19 @@ def voxel_skin(
     source_close = np.repeat(np.arange(N), 3)[mask.ravel()]
     to_close = idx[mask]
     weight_close = dist[mask]
-    
+
     # link grids to mesh vertices
     dist, idx = vertex_tree.query(grid_coords, vertex_query)
     mask = (0 < dist) & (dist < 2/grid*1.001) # sqrt(3)
     source_grid2vertex = np.repeat(np.arange(M), vertex_query)[mask.ravel()] + N
     to_grid2vertex = idx[mask]
     weight_grid2vertex = dist[mask]
-    
+
     # build combined vertices tree
     combined_tree = cKDTree(combined_vertices)
     # link joints to the neartest vertices
     _, joint_indices = combined_tree.query(joints)
-    
+
     # build graph
     source_vertex2vertex = np.concatenate([faces[:, 0], faces[:, 1], faces[:, 2]], axis=0)
     to_vertex2vertex = np.concatenate([faces[:, 1], faces[:, 2], faces[:, 0]], axis=0)
@@ -502,22 +502,22 @@ def voxel_skin(
         ),
         shape=(N+M, N+M),
     )
-    
+
     # get shortest path (J, N+M)
     dist_matrix = shortest_path(graph, method='D', directed=False, indices=joint_indices)
-    
+
     # (J, N)
     dis_vertex2joint = dist_matrix[:, :N]
     unreachable = np.isinf(dis_vertex2joint).all(axis=0)
     k = min(J, 3)
     dist, idx = joint_tree.query(vertices[unreachable], k)
-    
+
     # make sure at least one value in dis is not inf
     unreachable_indices = np.where(unreachable)[0]
     row_indices = idx
     col_indices = np.repeat(unreachable_indices, k).reshape(-1, k)
     dis_vertex2joint[row_indices, col_indices] = dist
-    
+
     finite_vals = dis_vertex2joint[np.isfinite(dis_vertex2joint)]
     max_dis = np.max(finite_vals)
     dis_vertex2joint = np.nan_to_num(dis_vertex2joint, nan=max_dis, posinf=max_dis, neginf=max_dis)
@@ -537,7 +537,7 @@ def voxel_skin(
 def find_connected_components(vertices: ndarray, faces: ndarray) -> Tuple[int, ndarray]:
     '''
     Find connected components of a mesh.
-    
+
     Returns:
         int: number of connected components
         ndarray: labels of connected components
@@ -549,14 +549,14 @@ def find_connected_components(vertices: ndarray, faces: ndarray) -> Tuple[int, n
         edges.append([v0, v1])
         edges.append([v1, v2])
         edges.append([v2, v0])
-    
+
     edges = np.array(edges)
     row = edges[:, 0]
     col = edges[:, 1]
     data = np.ones(len(edges), dtype=int)
     adj_matrix = csr_matrix((data, (row, col)), shape=(N, N))
     adj_matrix = adj_matrix + adj_matrix.T
-    
+
     tot, vertex_labels = connected_components(adj_matrix, directed=False, return_labels=True)
     face_labels = vertex_labels[faces[:, 0]]
     return tot, vertex_labels, face_labels
@@ -572,7 +572,7 @@ def compute_distances_in_components(vertices: ndarray, faces: ndarray, vertex_la
         w20 = np.linalg.norm(vertices[v2] - vertices[v0])
         edges.extend([[v0, v1], [v1, v2], [v2, v0]])
         weights.extend([w01, w12, w20])
-    
+
     edges = np.array(edges)
     weights = np.array(weights)
     row = edges[:, 0]
@@ -586,10 +586,10 @@ def compute_distances_in_components(vertices: ndarray, faces: ndarray, vertex_la
         component_mask = (vertex_labels == component_id)
         component_vertices_idx = np.where(component_mask)[0]
         n_component = len(component_vertices_idx)
-        
+
         if n_component == 0:
             continue
-        
+
         if n_component >= k:
             sampled_indices = np.random.permutation(n_component)[:k]
         else:
@@ -608,24 +608,24 @@ def compute_distances_in_components(vertices: ndarray, faces: ndarray, vertex_la
             dist_matrix[...] = 0.
         else:
             dist_matrix = (dist_matrix - min_value) / (max_value - min_value)
-        
+
         distance_matrix[component_mask, :] = dist_matrix
-    
+
     return distance_matrix
 
 def generate_spread_vectors(tot: int, dim: int, iterations: int=100, lr: float=1.0) -> ndarray:
     if tot <= 0:
         return None
-    
+
     vectors = np.random.randn(tot, dim)
     vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
     vectors = np.nan_to_num(vectors, nan=1.0, posinf=1.0, neginf=1.0)
-    
+
     for _ in range(iterations):
         diff = vectors[np.newaxis, :, :] - vectors[:, np.newaxis, :]
         norm_sq = np.sum(diff ** 2, axis=2)
         weight = 1. / (norm_sq + 1.)
         vectors += np.sum(diff * weight[:, :, np.newaxis] * lr, axis=1)
         vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
-    
+
     return vectors

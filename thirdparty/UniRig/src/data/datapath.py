@@ -18,16 +18,16 @@ class DatapathConfig(ConfigSpec):
     '''
     # root
     input_dataset_dir: str
-    
+
     # use proportion data sampling
     use_prob: bool
-    
+
     # cls: [(path_1, p_1), ...]
     data_path: Dict[str, List[Tuple[str, float]]]
-    
+
     # how many files to return when using data sampling
     num_files: Union[int, None]
-    
+
     @classmethod
     def from_args(cls, **kwargs) -> 'DatapathConfig':
         '''
@@ -36,8 +36,8 @@ class DatapathConfig(ConfigSpec):
         input = kwargs.get('input', None)
         output = kwargs.get('output', None)
         recursive = kwargs.get('recursive', False)
-        
-    
+
+
     @classmethod
     def parse(cls, config) -> 'DatapathConfig':
         cls.check_keys(config)
@@ -47,7 +47,7 @@ class DatapathConfig(ConfigSpec):
             data_path=config.data_path,
             num_files=config.get('num_files', None),
         )
-    
+
     def split_by_cls(self) -> Dict[str, 'DatapathConfig']:
         res: Dict[str, DatapathConfig] = {}
         for cls in self.data_path:
@@ -67,11 +67,11 @@ class Datapath():
             self.file_list  = []
             cls_probs_first = []
             cls_first       = []
-            
+
             self.files_by_class: Dict[str, List[Dict]] = defaultdict(list)
             self.class_positions: Dict[str, List[int]] = defaultdict(list)
             self.cls_probs_second: Dict[str, ndarray] = defaultdict(List)
-            
+
             for cls in self.config.data_path:
                 prob = 0.
                 probs_second = []
@@ -110,32 +110,32 @@ class Datapath():
             self.file_list  = [{'cls': cls, 'path': file} for file in files]
             cls_probs_first = np.array([1.])
             cls_first       = []
-            
+
             self.files_by_class: Dict[str, List[Dict]] = {cls: self.file_list.copy()}
             self.class_positions: Dict[str, List[int]] = {cls: [0]}
             self.cls_probs_second: Dict[str, ndarray] = {cls: np.array([1.])}
             self.config = Box({'use_prob': False})
         else:
             assert(0)
-    
+
     def __len__(self):
         if self.config.use_prob:
             assert self.config.num_files is not None, 'num_files is not specified'
             return self.config.num_files
         return len(self.file_list)
-    
+
     def __getitem__(self, index) -> Tuple[str, str]:
         if self.config.use_prob:
             # first sample a class
             cls = np.random.choice(self.cls_first, p=self.cls_probs_first)
-            
+
             # second sample in this class
             idx = np.random.choice(len(self.files_by_class[cls]), p=self.cls_probs_second[cls])
-            
+
             # get the current position
             pos = self.class_positions[cls][idx]
             files = self.files_by_class[cls][idx]
-            
+
             # get the item andd update position
             item = files[pos]
             self.class_positions[cls][idx] = (pos + 1) % len(files)
@@ -144,6 +144,6 @@ class Datapath():
         else:
             item = self.file_list[index]
         return (item['cls'], item['path'])
-    
+
     def get_data(self) -> List[Tuple[str, str]]:
         return [self[i] for i in range(len(self))]

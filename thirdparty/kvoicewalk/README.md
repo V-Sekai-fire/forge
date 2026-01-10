@@ -26,7 +26,7 @@ source .venv/bin/activate # '.venv\Scripts\activate' if Windows
 uv sync
 ```
 ## Usage
-2. KVoiceWalk expects target audio files to be in Mono 24000 Hz sample rate wav file format; ideally 20-30 seconds of a single speaker. However if needed, Kvoicewalk will check and convert target audio files into the proper format. If you would prefer to prepare them beforehand, you can this use this example ffmpeg command. 
+2. KVoiceWalk expects target audio files to be in Mono 24000 Hz sample rate wav file format; ideally 20-30 seconds of a single speaker. However if needed, Kvoicewalk will check and convert target audio files into the proper format. If you would prefer to prepare them beforehand, you can this use this example ffmpeg command.
 
 ```bash
 ffmpeg -i input_file.wav -ar 24000 target.wav
@@ -120,7 +120,7 @@ uv run main.py --voices_folder ./voices --export_bin
 "--target_text", type=str, help="The words contained in the target audio file.
     Should be around 100-200 tokens (two sentences). Alternatively, can point to a txt file of the transcription."
 
-"--other_text", type=str, help="A segment of text used to compare self similarity. Should be around 100-200 tokens." 
+"--other_text", type=str, help="A segment of text used to compare self similarity. Should be around 100-200 tokens."
     default="If you mix vinegar, baking soda, and a bit of dish soap in a tall cylinder, the resulting eruption is both
     a visual and tactile delight, often used in classrooms to simulate volcanic activity on a miniature scale."
 

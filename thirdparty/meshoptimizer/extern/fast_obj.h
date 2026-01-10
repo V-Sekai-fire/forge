@@ -311,7 +311,7 @@ void file_close(void* file, void* user_data)
 {
     FILE* f;
     (void)(user_data);
-    
+
     f = (FILE*)(file);
     fclose(f);
 }
@@ -322,7 +322,7 @@ size_t file_read(void* file, void* dst, size_t bytes, void* user_data)
 {
     FILE* f;
     (void)(user_data);
-    
+
     f = (FILE*)(file);
     return fread(dst, 1, bytes, f);
 }
@@ -355,7 +355,7 @@ char* string_copy(const char* s, const char* e)
 {
     size_t n;
     char*  p;
-        
+
     n = (size_t)(e - s);
     p = (char*)(memory_realloc(0, n + 1));
     if (p)
@@ -381,7 +381,7 @@ char* string_concat(const char* a, const char* s, const char* e)
     size_t an;
     size_t sn;
     char*  p;
-        
+
     an = a ? strlen(a) : 0;
     sn = (size_t)(e - s);
     p = (char*)(memory_realloc(0, an + sn + 1));
@@ -1267,8 +1267,8 @@ static
 void parse_buffer(fastObjData* data, const char* ptr, const char* end, const fastObjCallbacks* callbacks, void* user_data)
 {
     const char* p;
-    
-    
+
+
     p = ptr;
     while (p != end)
     {

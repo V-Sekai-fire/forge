@@ -295,33 +295,33 @@ defmodule OtelSetup do
   Sets up AppSignal OTLP exporter for traces, metrics, and logs.
   """
   require OpenTelemetry.Tracer
-  
+
   @appsignal_api_key "8d71abfe-5465-46d7-87e7-77f76d80198b"
   @appsignal_collector_url "https://fwbkb568.eu-central.appsignal-collector.net"
-  
+
   def configure do
     # Get application name and environment
     app_name = get_app_name()
     environment = get_environment()
     service_name = get_service_name()
-    
+
     # Get hostname and revision
     {:ok, hostname} = :inet.gethostname()
     revision = get_git_revision()
     app_path = File.cwd!()
-    
+
     # Set environment variables for OTLP exporter (required by opentelemetry_exporter)
     # These MUST be set before the opentelemetry application starts
     # According to OpenTelemetry docs, use "http/protobuf" for HTTP with protobuf encoding
     System.put_env("OTEL_EXPORTER_OTLP_ENDPOINT", @appsignal_collector_url)
     System.put_env("OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf")
     System.put_env("OTEL_EXPORTER_OTLP_HEADERS", "appsignal-api-key=#{@appsignal_api_key}")
-    
+
     # Set specific endpoints for traces/metrics/logs (all use the same AppSignal endpoint)
     System.put_env("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", @appsignal_collector_url)
     System.put_env("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", @appsignal_collector_url)
     System.put_env("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", @appsignal_collector_url)
-    
+
     # Configure via Application environment (opentelemetry_exporter reads from here)
     # According to AppSignal OpenTelemetry docs: https://docs.appsignal.com/opentelemetry/installation/elixir.html
     # Protocol should be :http_protobuf for HTTP with protobuf encoding
@@ -329,21 +329,21 @@ defmodule OtelSetup do
     Application.put_env(:opentelemetry_exporter, :otlp_endpoint, @appsignal_collector_url)
     Application.put_env(:opentelemetry_exporter, :otlp_protocol, :http_protobuf)
     Application.put_env(:opentelemetry_exporter, :otlp_headers, [{"appsignal-api-key", @appsignal_api_key}])
-    
+
     # Explicitly set traces/metrics/logs endpoints to avoid gRPC default (localhost:4318)
     # These MUST use HTTP protocol, not gRPC
     Application.put_env(:opentelemetry_exporter, :otlp_traces_endpoint, @appsignal_collector_url)
     Application.put_env(:opentelemetry_exporter, :otlp_metrics_endpoint, @appsignal_collector_url)
     Application.put_env(:opentelemetry_exporter, :otlp_logs_endpoint, @appsignal_collector_url)
-    
+
     # Disable gRPC exporter explicitly to prevent localhost:4318 connection attempts
     # Set gRPC endpoints to empty/nil to disable
     Application.put_env(:opentelemetry_exporter, :otlp_grpc_endpoint, nil)
     Application.put_env(:opentelemetry_exporter, :grpc_endpoint, nil)
-    
+
     # Configure batch processor for better performance
     Application.put_env(:opentelemetry, :span_processor, :batch)
-    
+
     # Configure resource attributes for AppSignal
     Application.put_env(:opentelemetry, :resource, [
       {"appsignal.config.name", app_name},
@@ -355,15 +355,15 @@ defmodule OtelSetup do
       {"host.name", to_string(hostname)},
       {"service.name", service_name}
     ])
-    
+
     # Configure OTLP exporter for AppSignal
     Application.put_env(:opentelemetry, :traces_exporter, :otlp)
     Application.put_env(:opentelemetry, :metrics_exporter, :otlp)
     Application.put_env(:opentelemetry, :logs_exporter, :otlp)
-    
+
     # Also start our JSON exporter agent for local debugging/backup
     OtelJsonExporter.start_link([])
-    
+
     # Set up Logger backend to capture logs
     setup_log_backend()
 
@@ -373,7 +373,7 @@ defmodule OtelSetup do
     traces_endpoint = System.get_env("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
     app_protocol = Application.get_env(:opentelemetry_exporter, :otlp_protocol)
     app_endpoint = Application.get_env(:opentelemetry_exporter, :otlp_endpoint)
-    
+
     require Logger
     if endpoint do
       Logger.info("OpenTelemetry OTLP endpoint configured: #{endpoint} (protocol: #{protocol || "default"})")
@@ -402,12 +402,12 @@ defmodule OtelSetup do
         {:error, error}
     end
   end
-  
+
   defp get_app_name do
     # Try to get from environment variable, or use a default
     System.get_env("APPSIGNAL_APP_NAME", "livebook-nx")
   end
-  
+
   defp get_environment do
     # Try to get from Mix.env() or environment variable
     cond do
@@ -419,12 +419,12 @@ defmodule OtelSetup do
         "development"
     end
   end
-  
+
   defp get_service_name do
     # Use environment variable or default
     System.get_env("APPSIGNAL_SERVICE_NAME", "omnipart-generation")
   end
-  
+
   defp get_git_revision do
     # Try to get git revision
     case System.cmd("git", ["log", "--pretty=format:%h", "-n", "1"]) do
@@ -434,14 +434,14 @@ defmodule OtelSetup do
   rescue
     _ -> "unknown"
   end
-  
+
   defp setup_log_backend do
     # Add a custom Logger backend to capture logs
     # Use Elixir's Logger.add_backend for compatibility
     case Logger.add_backend(OtelLogHandler) do
       {:ok, _} -> :ok
       {:error, :already_exists} -> :ok  # Already added, that's fine
-      _error -> 
+      _error ->
         # Fallback: try the :logger API
         try do
           :logger.add_handler(:otel_json_handler, OtelLogHandler, %{
@@ -460,47 +460,47 @@ defmodule OtelLogHandler do
   Logger backend that captures logs and sends them to OtelJsonExporter.
   """
   @behaviour :gen_event
-  
+
   def init(_args) do
     {:ok, %{}}
   end
-  
+
   def handle_event({level, _gl, {Logger, msg, _ts, md}}, state) do
     # Extract log message and metadata
     message = format_message(msg, md)
     metadata = extract_metadata(md)
-    
+
     # Send to OtelJsonExporter
     OtelJsonExporter.add_log(level, message, metadata)
-    
+
     {:ok, state}
   end
-  
+
   def handle_event(_event, state) do
     {:ok, state}
   end
-  
+
   def handle_call({:configure, _opts}, state) do
     {:ok, :ok, state}
   end
-  
+
   def handle_info(_msg, state) do
     {:ok, state}
   end
-  
+
   def code_change(_old_vsn, state, _extra) do
     {:ok, state}
   end
-  
+
   def terminate(_reason, _state) do
     :ok
   end
-  
+
   defp format_message(msg, _md) when is_binary(msg), do: msg
   defp format_message({:string, chardata}, _md), do: IO.chardata_to_string(chardata)
   defp format_message({:report, report}, _md) when is_map(report), do: inspect(report)
   defp format_message(other, _md), do: inspect(other)
-  
+
   defp extract_metadata(md) when is_list(md) do
     Enum.map(md, fn
       {key, value} -> {key, value}
@@ -516,7 +516,7 @@ defmodule OtelJsonExporter do
   Implements the OpenTelemetry exporter behavior.
   """
   use Agent
-  
+
   def start_link(_opts \\ []) do
     Agent.start_link(fn -> %{
       spans: [],
@@ -525,7 +525,7 @@ defmodule OtelJsonExporter do
       start_time: System.monotonic_time(:millisecond)
     } end, name: __MODULE__)
   end
-  
+
   def add_log(level, message, metadata \\ []) do
     log_entry = %{
       timestamp: System.monotonic_time(:millisecond),
@@ -533,7 +533,7 @@ defmodule OtelJsonExporter do
       message: message,
       metadata: convert_metadata(metadata)
     }
-    
+
     Agent.update(__MODULE__, fn state ->
       %{state | logs: [log_entry | state.logs]}
     end)
@@ -548,7 +548,7 @@ defmodule OtelJsonExporter do
       source: "python",
       trace_context: trace_context
     }
-    
+
     Agent.update(__MODULE__, fn state ->
       %{state | logs: [log_entry | state.logs]}
     end)
@@ -559,42 +559,42 @@ defmodule OtelJsonExporter do
       %{state | spans: [span_data | state.spans]}
     end)
   end
-  
+
   # OpenTelemetry exporter callback
   def export(traces, _opts) when is_list(traces) do
     # Collect spans from traces
     spans = Enum.flat_map(traces, fn trace ->
       collect_spans_from_trace(trace)
     end)
-    
+
     Agent.update(__MODULE__, fn state ->
       %{state | spans: state.spans ++ spans}
     end)
-    
+
     :ok
   end
-  
+
   def export(_other, _opts), do: :ok
-  
-  # OpenTelemetry metrics exporter callback  
+
+  # OpenTelemetry metrics exporter callback
   def export_metrics(metrics, _opts) when is_list(metrics) do
     exported_metrics = Enum.map(metrics, fn metric ->
       convert_metric(metric)
     end)
-    
+
     Agent.update(__MODULE__, fn state ->
       %{state | metrics: state.metrics ++ exported_metrics}
     end)
-    
+
     :ok
   end
-  
+
   def export_metrics(_other, _opts), do: :ok
-  
+
   def export_json(output_dir \\ nil) do
     state = Agent.get(__MODULE__, fn s -> s end)
     total_time = System.monotonic_time(:millisecond) - state.start_time
-    
+
     json_data = %{
       spans: state.spans,
       metrics: state.metrics,
@@ -608,9 +608,9 @@ defmodule OtelJsonExporter do
         log_count: length(state.logs)
       }
     }
-    
+
     json_string = Jason.encode!(json_data, pretty: true)
-    
+
     if output_dir do
       # Save to file instead of printing
       File.mkdir_p!(output_dir)
@@ -627,10 +627,10 @@ defmodule OtelJsonExporter do
       IO.puts(json_string)
       IO.puts("")
     end
-    
+
     json_string
   end
-  
+
   defp convert_metadata(metadata) when is_list(metadata) do
     # Convert list of tuples to a map for JSON encoding
     metadata
@@ -647,11 +647,11 @@ defmodule OtelJsonExporter do
     |> Enum.into(%{})
   end
   defp convert_metadata(metadata), do: %{"_raw" => inspect(metadata)}
-  
+
   defp convert_key(key) when is_atom(key), do: Atom.to_string(key)
   defp convert_key(key) when is_binary(key), do: key
   defp convert_key(key), do: to_string(key)
-  
+
   defp collect_spans_from_trace(trace) do
     # Extract spans from trace - structure depends on OpenTelemetry SDK
     # Try to extract span data from the trace tuple/record
@@ -678,7 +678,7 @@ defmodule OtelJsonExporter do
       _ -> []
     end
   end
-  
+
   defp convert_span(span) do
     # Convert OpenTelemetry span to JSON-serializable format
     try do
@@ -717,7 +717,7 @@ defmodule OtelJsonExporter do
         %{span: inspect(span, limit: 200), error: inspect(e, limit: 100)}
     end
   end
-  
+
   defp convert_metric(metric) do
     try do
       %{
@@ -729,7 +729,7 @@ defmodule OtelJsonExporter do
         %{metric: inspect(metric, limit: 200)}
     end
   end
-  
+
   defp convert_attributes(attrs) when is_list(attrs) do
     # Convert list of tuples to a map for JSON encoding
     attrs
@@ -746,12 +746,12 @@ defmodule OtelJsonExporter do
     |> Enum.into(%{})
   end
   defp convert_attributes(attrs), do: %{"_raw" => inspect(attrs)}
-  
+
   defp convert_events(events) when is_list(events) do
     Enum.map(events, &inspect/1)
   end
   defp convert_events(events), do: inspect(events)
-  
+
   defp convert_value(value) when is_atom(value), do: Atom.to_string(value)
   defp convert_value(value) when is_binary(value), do: value
   defp convert_value(value) when is_number(value), do: value
@@ -771,13 +771,13 @@ defmodule OtelJsonExporter do
     value |> Tuple.to_list() |> Enum.map(&convert_value/1)
   end
   defp convert_value(value), do: inspect(value, limit: 100)
-  
+
   defp format_id(id) when is_integer(id) do
     Integer.to_string(id, 16) |> String.pad_leading(16, "0")
   end
   defp format_id(nil), do: nil
   defp format_id(id), do: inspect(id)
-  
+
   defp safe_element(tuple, index) do
     try do
       :erlang.element(index, tuple)
@@ -785,7 +785,7 @@ defmodule OtelJsonExporter do
       _ -> nil
     end
   end
-  
+
   defp safe_convert_attributes(tuple, index) do
     try do
       convert_attributes(:erlang.element(index, tuple))
@@ -808,7 +808,7 @@ defmodule SpanCollector do
       Enum.each(attrs, fn {key, value} ->
         OpenTelemetry.Tracer.set_attribute(key, value)
       end)
-      
+
       try do
         result = fun.()
         OpenTelemetry.Tracer.set_status(:ok)
@@ -840,7 +840,7 @@ defmodule SpanCollector do
                         _ -> 0
                       end
                   end
-                  
+
                   if exit_code == 0 do
                     # SystemExit(0) is success, not an error
                     OpenTelemetry.Tracer.set_status(:ok)
@@ -896,7 +896,7 @@ defmodule SpanCollector do
     try do
       # Get current span context
       span_ctx = OpenTelemetry.Tracer.current_span_ctx()
-      
+
       if span_ctx do
         # Extract trace_id and span_id from span context
         # OpenTelemetry span context is a tuple/record with trace_id and span_id
@@ -906,20 +906,20 @@ defmodule SpanCollector do
         rescue
           _ -> nil
         end
-        
+
         span_id = try do
           :erlang.element(3, span_ctx)  # span_id is typically at position 3
         rescue
           _ -> nil
         end
-        
+
         if trace_id && span_id do
           # Format as TRACEPARENT (version-trace_id-span_id-trace_flags)
           # version = 00, trace_id = 32 hex chars, span_id = 16 hex chars, trace_flags = 2 hex chars
           trace_id_hex = trace_id |> Integer.to_string(16) |> String.pad_leading(32, "0")
           span_id_hex = span_id |> Integer.to_string(16) |> String.pad_leading(16, "0")
           trace_flags_hex = "01"  # Default: sampled
-          
+
           "00-#{trace_id_hex}-#{span_id_hex}-#{trace_flags_hex}"
         else
           nil

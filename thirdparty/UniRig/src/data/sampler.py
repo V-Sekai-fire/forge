@@ -17,16 +17,16 @@ class SamplerConfig(ConfigSpec):
     '''
     # which sampler to use
     method: str
-    
+
     # how many samples in total
     num_samples: int
-    
+
     # how many vertex samples
     vertex_samples: int
-    
+
     # kwargs
     kwargs: Dict[str, Dict]
-    
+
     @classmethod
     def parse(cls, config) -> 'SamplerConfig':
         cls.check_keys(config)
@@ -41,10 +41,10 @@ class SamplerConfig(ConfigSpec):
 class SamplerResult():
     # sampled vertices
     vertices: ndarray
-    
+
     # sampled normals
     normals: ndarray
-    
+
     # sampled vertex groups
     vertex_groups: Dict[str, ndarray]
 
@@ -52,7 +52,7 @@ class Sampler(ABC):
     '''
     Abstract class for samplers.
     '''
-    
+
     def _sample_barycentric(
         self,
         vertex_group: ndarray,
@@ -63,15 +63,15 @@ class Sampler(ABC):
         v_origins = vertex_group[faces[face_index, 0]]
         v_vectors = vertex_group[faces[face_index, 1:]]
         v_vectors -= v_origins[:, np.newaxis, :]
-        
+
         sample_vector = (v_vectors * random_lengths).sum(axis=1)
         v_samples = sample_vector + v_origins
         return v_samples
-    
+
     @abstractmethod
     def __init__(self, config: SamplerConfig):
         pass
-    
+
     @abstractmethod
     def sample(
         self,
@@ -87,7 +87,7 @@ class SamplerOrigin(Sampler):
         super().__init__(config)
         self.num_samples    = config.num_samples
         self.vertex_samples = config.vertex_samples
-        
+
     def sample(
         self,
         asset: Asset,
@@ -112,11 +112,11 @@ class SamplerMix(Sampler):
         self.num_samples    = config.num_samples
         self.vertex_samples = config.vertex_samples
         assert self.num_samples >= self.vertex_samples, 'num_samples should >= vertex_samples'
-    
+
     @property
     def mesh_preserve(self):
         return self.num_samples==-1
-    
+
     def sample(
         self,
         asset: Asset,
@@ -130,7 +130,7 @@ class SamplerMix(Sampler):
         n_vertex = asset.vertices[perm]
         n_normal = asset.vertex_normals[perm]
         n_v = {name: v[perm] for name, v in asset.vertex_groups.items()}
-        
+
         # 2. sample surface
         perm = np.random.permutation(num_samples)
         vertex_samples, face_index, random_lengths = sample_surface(
@@ -164,7 +164,7 @@ def sample_surface(
 ):
     '''
     Randomly pick samples according to face area.
-    
+
     See sample_surface: https://github.com/mikedh/trimesh/blob/main/trimesh/sample.py
     '''
     # get face area
@@ -172,11 +172,11 @@ def sample_surface(
     offset_1 = vertices[faces[:, 2]] - vertices[faces[:, 0]]
     face_weight = np.cross(offset_0, offset_1, axis=-1)
     face_weight = (face_weight * face_weight).sum(axis=1)
-    
+
     weight_cum = np.cumsum(face_weight, axis=0)
     face_pick = np.random.rand(num_samples) * weight_cum[-1]
     face_index = np.searchsorted(weight_cum, face_pick)
-    
+
     # pull triangles into the form of an origin + 2 vectors
     tri_origins = vertices[faces[:, 0]]
     tri_vectors = vertices[faces[:, 1:]]
@@ -185,14 +185,14 @@ def sample_surface(
     # pull the vectors for the faces we are going to sample from
     tri_origins = tri_origins[face_index]
     tri_vectors = tri_vectors[face_index]
-    
+
     # randomly generate two 0-1 scalar components to multiply edge vectors b
     random_lengths = np.random.rand(len(tri_vectors), 2, 1)
-    
+
     random_test = random_lengths.sum(axis=1).reshape(-1) > 1.0
     random_lengths[random_test] -= 1.0
     random_lengths = np.abs(random_lengths)
-    
+
     sample_vector = (tri_vectors * random_lengths).sum(axis=1)
     vertex_samples = sample_vector + tri_origins
     if not return_weight:

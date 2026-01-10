@@ -2,7 +2,7 @@ from utils import find_matches_closest_surface, inpaint, smooth
 import polyscope as ps
 import igl
 import numpy as np
-import os 
+import os
 
 # Initialize polyscope
 ps.init()
@@ -24,7 +24,7 @@ if (V.shape[0] != V2.shape[0]):
     print("[Warning] Target mesh has unreferenced vertices which were removed")
 N2 = igl.per_vertex_normals(V2, F2)
 
-# You can setup your own skin weights matrix W \in R^(|V1| x num_bones) here 
+# You can setup your own skin weights matrix W \in R^(|V1| x num_bones) here
 # W = np.load("source_skinweights.npy")
 
 # For now, generate simple per-vertex data (can be skinning weights but can be any scalar data)
@@ -32,7 +32,7 @@ W = np.ones((V1.shape[0], 2)) # our simple rig has only 2 bones
 W[:, 0] = 0.3 # first bone has an influence of 0.3 on all vertices
 W[:, 1] = 0.7 # second bone has an influence of 0.7 on all vertices
 
-num_bones = W.shape[1] 
+num_bones = W.shape[1]
 
 # Register source and target Mesh geometries, plus their Normals
 ps.register_surface_mesh("SourceMesh", V1, F1, smooth_shade=True)

@@ -8,7 +8,7 @@ class ConfigSpec(ABC):
         for key in config.keys():
             if key not in expect:
                 raise ValueError(f"expect names {expect} in {cls.__name__}, found {key}")
-    
+
     @classmethod
     @abstractmethod
     def parse(cls, config):

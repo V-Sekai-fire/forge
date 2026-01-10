@@ -80,7 +80,7 @@ We appreciate your patience as we prepare these components for release. Follow [
     python -m pip install torch_scatter torch_cluster -f https://data.pyg.org/whl/torch-{your-torch-version}+{your-cuda-version}.html --no-cache-dir
     python -m pip install numpy==1.26.4
     ```
-  
+
   `spconv` is installed from [this repo](https://github.com/traveller59/spconv), `torch_scatter` and `torch_cluster` are installed from [this site](https://pytorch-geometric.readthedocs.io/en/latest/install/installation.html). Also, there is a high chance that you will encounter flash_attn installation error, go to its [original repo](https://github.com/Dao-AILab/flash-attention) and follow its installation guide.
 
 5.  **Download Model Checkpoint:**
@@ -104,7 +104,7 @@ The json contains all ids of the models with `type` indicating their category an
 
 Training/validation split is put in `datalist` folder.
 
-📝 **Note**:  
+📝 **Note**:
 All floating-point values are stored in **`float16`** format for compression.
 
 ### Visualize Data
@@ -124,31 +124,31 @@ raw_data.export_fbx("res.fbx")
 
 All models are converted into world space.
 
-- **`vertices`**:  
+- **`vertices`**:
   Position of the vertices of the mesh, shape `(N, 3)`.
 
-- **`vertex_normals`**:  
+- **`vertex_normals`**:
   Normals of the vertices, processed by `Trimesh`, shape `(N, 3)`.
 
-- **`faces`**:  
+- **`faces`**:
   Indices of mesh faces (triangles), starting from 0, shape `(F, 3)`.
 
-- **`face_normals`**:  
+- **`face_normals`**:
   Normals of the faces, shape `(F, 3)`.
 
-- **`joints`**:  
+- **`joints`**:
   Positions of the armature joints, shape `(J, 3)`.
 
-- **`skin`**:  
+- **`skin`**:
   Skinning weights for each vertex, shape `(N, J)`.
 
-- **`parents`**:  
+- **`parents`**:
   Parent index of each joint, where `parents[0]` is always `None` (root), shape `(J)`.
 
-- **`names`**:  
+- **`names`**:
   Name of each joint.
 
-- **`matrix_local`**:  
+- **`matrix_local`**:
   The local axis of each bone; aligned to Y-up axis, consistent with Blender.
 
 </details>
@@ -249,16 +249,16 @@ This section provides the configuration files needed to reproduce the results tr
 
 5. model:
 
-    Defined in `configs/model/unirig_rignet.yaml`, and you can change base transformer model here. 
+    Defined in `configs/model/unirig_rignet.yaml`, and you can change base transformer model here.
 
     *Note: `n_positions` must > sum of the conditional embedding length and the maximum number of skeleton tokens.*
 
 6. task:
 
     The final training config. Defined in `configs/task/train_rignet_ar.yaml`. This integrates all components above, and also configures `loss`, `optimizer`, and `scheduler`. You can find optimizers and schedulers initialization in `src/system/optimizer.py` and `src/system/scheduler.py`.
-    
+
     The `trainer` section controls GPU/node usage (multi-node training is not tested).
-    
+
     The `wandb` section enables logging with Weights & Biases, and the `checkpoint` section configures the checkpoint saving strategy.
 
     You can comment out `wandb` and `checkpoint` if you don’t need logging or final model checkpoints.
@@ -314,7 +314,7 @@ trainer:
 and run:
 
 ```bash
-bash launch/inference/generate_skeleton.sh --input examples/giraffe.glb --output examples/giraffe_skeleton.fbx --skeleton_task configs/task/rignet_ar_inference_scratch.yaml 
+bash launch/inference/generate_skeleton.sh --input examples/giraffe.glb --output examples/giraffe_skeleton.fbx --skeleton_task configs/task/rignet_ar_inference_scratch.yaml
 ```
 
 </details>
@@ -368,7 +368,7 @@ trainer:
 and run:
 
 ```bash
-bash launch/inference/generate_skin.sh --input examples/skeleton/giraffe.fbx --output results/giraffe_skin.fbx --skin_task configs/task/rignet_skin_inference_scratch.yaml 
+bash launch/inference/generate_skin.sh --input examples/skeleton/giraffe.fbx --output results/giraffe_skin.fbx --skin_task configs/task/rignet_skin_inference_scratch.yaml
 ```
 </details>
 
