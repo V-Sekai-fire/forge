@@ -8,21 +8,12 @@ config :livebook_nx,
 config :livebook_nx, Oban,
   repo: LivebookNx.Repo,
   plugins: [Oban.Plugins.Pruner],
-  queues: [default: 5, ml: 8]
+  queues: [default: 5, ml: 8],
+  notifier: Oban.Notifiers.Isolated
 
-# Database (development defaults - production uses environment variables)
+# Database (SQLite for simple embedded database)
 config :livebook_nx, LivebookNx.Repo,
-  database: System.get_env("DATABASE_NAME", "livebook_nx_dev"),
-  username: System.get_env("DATABASE_USER", "root"),
-  password: System.get_env("DATABASE_PASSWORD", "secure_password_123"),
-  hostname: System.get_env("DATABASE_HOST", "localhost"),
-  port: String.to_integer(System.get_env("DATABASE_PORT", "26257")),
-  # Use SSL in production, disable for local insecure CockroachDB
-  ssl: if(System.get_env("COCKROACH_INSECURE", "true") == "true", do: false, else: [
-    cacertfile: System.get_env("DB_CA_CERT", "cockroach-certs/ca.crt"),
-    certfile: System.get_env("DB_CLIENT_CERT", "cockroach-certs/client.root.crt"),
-    keyfile: System.get_env("DB_CLIENT_KEY", "cockroach-certs/client.root.key")
-  ]),
+  database: System.get_env("DATABASE_PATH", "livebook_nx.db"),
   migration_lock: nil
 
 # OpenTelemetry

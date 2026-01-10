@@ -2,28 +2,16 @@ import Config
 
 # Runtime configuration for production
 if config_env() == :prod do
-  # Database for CockroachDB
+  # Database for SQLite (embedded)
   config :livebook_nx, LivebookNx.Repo,
-    username: System.get_env("COCKROACHDB_USER"),
-    password: System.get_env("COCKROACHDB_PASSWORD"),
-    database: "livebook_nx_prod",
-    hostname: System.get_env("COCKROACHDB_HOST") || "cockroachdb-cluster",
-    port: 26257,
-    ssl: true,
-    ssl_opts: [cacertfile: "/path/to/ca.crt"]
+    database: System.get_env("DATABASE_PATH") || "livebook_nx_prod.db"
 
   # Oban queues for production
   config :livebook_nx, Oban,
-    engine: Oban.Pro.Engines.Smart,
     queues: [
       default: String.to_integer(System.get_env("OBAN_DEFAULT_QUEUE") || "5"),
       ml: String.to_integer(System.get_env("OBAN_ML_QUEUE") || "8")
     ],
-    repo: LivebookNx.Repo
-
-  # SeaweedFS config
-  config :livebook_nx, :seaweedfs,
-    endpoint: System.get_env("SEAWEEDFS_ENDPOINT") || "http://seaweedfs-master:9333",
-    access_key: System.get_env("SEAWEEDFS_ACCESS_KEY"),
-    secret_key: System.get_env("SEAWEEDFS_SECRET_KEY")
+    repo: LivebookNx.Repo,
+    notifier: Oban.Notifiers.Isolated
 end

@@ -22,12 +22,7 @@ defmodule LivebookNx.MixProject do
           runtime_tools: :permanent
         ],
         steps: [:assemble, :tar],
-        strip_beams: Mix.env() == :prod,
-        # Include CockroachDB binary and certificates
-        extra_steps: [
-          &include_cockroachdb/1,
-          &include_certificates/1
-        ]
+        strip_beams: Mix.env() == :prod
       ]
     ]
   end
@@ -82,7 +77,7 @@ defmodule LivebookNx.MixProject do
       {:req, "~> 0.5"},
       {:oban, "~> 2.17"},
       {:ecto_sql, "~> 3.10"},
-      {:postgrex, "~> 0.17"},  # For CockroachDB compatibility
+      {:ecto_sqlite3, "~> 0.12"},  # SQLite for simple embedded database
       {:opentelemetry_api, "~> 1.3"},
       {:opentelemetry, "~> 1.3"},
       {:opentelemetry_exporter, "~> 1.0"},
