@@ -371,7 +371,7 @@ spec:
               cpu: "2000m"
           volumeMounts:
             - name: model-cache
-              mountPath: /app/pretrained_weights
+              mountPath: /app/priv/pretrained_weights
       volumes:
         - name: model-cache
           persistentVolumeClaim:
@@ -541,7 +541,7 @@ cockroach sql --certs-dir=certs \
 
 ```bash
 # Backup pretrained models
-tar -czf models_backup.tar.gz pretrained_weights/
+tar -czf models_backup.tar.gz priv/pretrained_weights/
 aws s3 cp models_backup.tar.gz s3://bucket/models/
 ```
 
@@ -590,7 +590,7 @@ config :livebook_nx,
 
    ```bash
    # Clear cache and retry
-   rm -rf pretrained_weights/Huihui-Qwen3-VL-4B-Instruct-abliterated/
+   rm -rf priv/pretrained_weights/Huihui-Qwen3-VL-4B-Instruct-abliterated/
    mix qwen3vl test.jpg "test"
    ```
 

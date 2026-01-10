@@ -68,7 +68,7 @@ mix qwen3vl photo.jpg "Analyze this image" --output analysis.txt
 
 #### Model Configuration
 
-The system automatically downloads and caches the Qwen3-VL model. Models are stored in `pretrained_weights/` directory.
+The system automatically downloads and caches the Qwen3-VL model. Models are stored in `priv/pretrained_weights/` directory.
 
 ### Z-Image-Turbo Image Generation
 
@@ -100,7 +100,7 @@ mix zimage "cat" "dog" "bird" --width 512
 
 #### Model Configuration
 
-Z-Image-Turbo models are automatically downloaded and cached in `pretrained_weights/Z-Image-Turbo/`.
+Z-Image-Turbo models are automatically downloaded and cached in `priv/pretrained_weights/Z-Image-Turbo/`.
 
 ### Asynchronous Job Processing
 
@@ -232,7 +232,7 @@ config :forge, Forge.Repo,
 1. **Model download fails:**
    - Check internet connection
    - Verify HuggingFace access
-   - Clear `pretrained_weights/` and retry
+   - Clear `priv/pretrained_weights/` and retry
 
 2. **Python environment issues:**
    - Run `mix compile` to reinitialize Pythonx

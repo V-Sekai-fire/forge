@@ -15,7 +15,7 @@ mix.lock
 *.ez
 
 # ML Models and weights (large files)
-pretrained_weights/
+priv/pretrained_weights/
 *.pth
 *.pt
 *.ckpt

@@ -10,7 +10,7 @@ defmodule Forge.ZImage do
   require Logger
 
   @model_id "Tongyi-MAI/Z-Image-Turbo"
-  @weights_dir "pretrained_weights/Z-Image-Turbo"
+  @weights_dir "priv/pretrained_weights/Z-Image-Turbo"
 
   @doc """
   Configuration struct for image generation.

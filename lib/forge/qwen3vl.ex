@@ -9,7 +9,7 @@ defmodule Forge.Qwen3VL do
   Code.eval_file("lib/forge/shared_utils.exs")
 
   @model_id "huihui-ai/Huihui-Qwen3-VL-4B-Instruct-abliterated"
-  @weights_dir "pretrained_weights/Huihui-Qwen3-VL-4B-Instruct-abliterated"
+  @weights_dir "priv/pretrained_weights/Huihui-Qwen3-VL-4B-Instruct-abliterated"
 
   defstruct [
     :image_path,

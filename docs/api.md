@@ -273,7 +273,7 @@ config :livebook_nx,
 config :livebook_nx,
   qwen3vl: %{
     model_id: "huihui-ai/Huihui-Qwen3-VL-4B-Instruct-abliterated",
-    cache_dir: "pretrained_weights"
+    cache_dir: "priv/pretrained_weights"
   }
 
 # Pythonx configuration
