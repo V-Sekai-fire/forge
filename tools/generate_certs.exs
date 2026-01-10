@@ -1,7 +1,7 @@
 #!/usr/bin/env elixir
 
-# Script to generate self-signed certificates for CockroachDB development
-# Creates CA, node, and client certificates
+# Script to generate self-signed certificates for CockroachDB and webserver development
+# Creates CA, node, client, and webserver certificates
 
 defmodule CockroachCertGen do
   @certs_dir "cockroach-certs"
@@ -10,7 +10,7 @@ defmodule CockroachCertGen do
     # Create certificates directory
     File.mkdir_p!(@certs_dir)
 
-    IO.puts("Generating CockroachDB certificates...")
+    IO.puts("Generating CockroachDB and webserver certificates...")
 
     # Generate CA
     IO.puts("1. Generating CA certificate...")
@@ -24,11 +24,17 @@ defmodule CockroachCertGen do
     IO.puts("3. Generating client certificate...")
     generate_client_cert()
 
+    # Generate webserver certificate
+    IO.puts("4. Generating webserver certificate...")
+    generate_webserver_cert()
+
     IO.puts("Certificates generated successfully!")
     IO.puts("Certificate files created in: #{@certs_dir}")
     IO.puts("")
     IO.puts("To start CockroachDB with TLS:")
     IO.puts("cockroach start-single-node --certs-dir=#{@certs_dir} --listen-addr=localhost:26257 --http-addr=localhost:8080")
+    IO.puts("")
+    IO.puts("Webserver certificate available at: #{@certs_dir}/webserver.crt and #{@certs_dir}/webserver.key")
   end
 
   defp generate_ca do
@@ -97,6 +103,36 @@ defmodule CockroachCertGen do
     # Save client certificate and key
     File.write!("#{@certs_dir}/client.root.crt", X509.Certificate.to_pem(client_cert))
     File.write!("#{@certs_dir}/client.root.key", X509.PrivateKey.to_pem(client_key))
+  end
+
+  defp generate_webserver_cert do
+    # Load CA
+    ca_cert = File.read!("#{@certs_dir}/ca.crt") |> X509.Certificate.from_pem!()
+    ca_key = File.read!("#{@certs_dir}/ca.key") |> X509.PrivateKey.from_pem!()
+
+    # Generate webserver private key
+    webserver_key = X509.PrivateKey.new_rsa(2048)
+
+    # Generate webserver certificate
+    webserver_cert = X509.Certificate.new(
+      X509.PublicKey.derive(webserver_key),
+      "/C=US/ST=CA/L=San Francisco/O=Livebook Nx/OU=Web/CN=webserver",
+      ca_cert,
+      ca_key,
+      extensions: [
+        subject_alt_name: X509.Certificate.Extension.subject_alt_name([
+          {:dNSName, "localhost"},
+          {:dNSName, "webserver"},
+          {:dNSName, "*.localhost"}
+        ]),
+        key_usage: X509.Certificate.Extension.key_usage([:digitalSignature, :keyEncipherment]),
+        ext_key_usage: X509.Certificate.Extension.ext_key_usage([:serverAuth])
+      ]
+    )
+
+    # Save webserver certificate and key
+    File.write!("#{@certs_dir}/webserver.crt", X509.Certificate.to_pem(webserver_cert))
+    File.write!("#{@certs_dir}/webserver.key", X509.PrivateKey.to_pem(webserver_key))
   end
 end
 
