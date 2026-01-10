@@ -181,3 +181,166 @@ defmodule SpanCollector do
     IO.puts("")
   end
 end
+
+# ============================================================================
+# HUGGING FACE DOWNLOADER
+# ============================================================================
+
+defmodule HuggingFaceDownloader do
+  @moduledoc """
+  Downloads model repositories from Hugging Face.
+  """
+  @compile {:no_warn_undefined, [Req]}
+  @base_url "https://huggingface.co"
+  @api_base "https://huggingface.co/api"
+
+  def download_repo(repo_id, local_dir, repo_name \\ "model", use_otel \\ false) do
+    if use_otel do
+      SpanCollector.track_span("download_repo", fn ->
+        IO.puts("Downloading #{repo_name}...")
+      end, [{"download.repo_name", repo_name}, {"download.repo_id", repo_id}])
+    else
+      IO.puts("Downloading #{repo_name}...")
+    end
+
+    File.mkdir_p!(local_dir)
+
+    case get_file_tree(repo_id) do
+      {:ok, files} ->
+        files_list = Map.to_list(files)
+        total = length(files_list)
+        if use_otel do
+          SpanCollector.track_span("download_files", fn ->
+            IO.puts("Found #{total} files to download")
+          end, [{"download.file_count", total}])
+        else
+          IO.puts("Found #{total} files to download")
+        end
+
+        files_list
+        |> Enum.with_index(1)
+        |> Enum.each(fn {{path, info}, index} ->
+          download_file(repo_id, path, local_dir, info, index, total, use_otel)
+        end)
+
+        if use_otel do
+          SpanCollector.track_span("download_complete", fn ->
+            IO.puts("[OK] #{repo_name} downloaded successfully")
+          end, [{"download.repo_name", repo_name}, {"download.status", "completed"}])
+        else
+          IO.puts("[OK] #{repo_name} downloaded successfully")
+        end
+        {:ok, local_dir}
+
+      {:error, reason} ->
+        if use_otel do
+          SpanCollector.track_span("download_failed", fn ->
+            IO.puts("[ERROR] #{repo_name} download failed: #{inspect(reason)}")
+          end, [{"download.repo_name", repo_name}, {"download.status", "failed"}, {"error.reason", inspect(reason)}])
+        else
+          IO.puts("[ERROR] #{repo_name} download failed: #{inspect(reason)}")
+        end
+        {:error, reason}
+    end
+  end
+
+  defp get_file_tree(repo_id, revision \\ "main") do
+    case get_files_recursive(repo_id, revision, "") do
+      {:ok, files} ->
+        file_map =
+          files
+          |> Enum.map(fn file -> {file["path"], file} end)
+          |> Map.new()
+        {:ok, file_map}
+      error -> error
+    end
+  end
+
+  defp get_files_recursive(repo_id, revision, path) do
+    url = if path == "" do
+      "#{@api_base}/models/#{repo_id}/tree/#{revision}"
+    else
+      "#{@api_base}/models/#{repo_id}/tree/#{revision}/#{path}"
+    end
+
+    try do
+      response = Req.get(url)
+      items = case response do
+        {:ok, %{status: 200, body: body}} when is_list(body) -> body
+        %{status: 200, body: body} when is_list(body) -> body
+        {:ok, %{status: status}} -> raise "API returned status #{status}"
+        %{status: status} -> raise "API returned status #{status}"
+        {:error, reason} -> raise inspect(reason)
+        other -> raise "Unexpected response: #{inspect(other)}"
+      end
+
+      files = Enum.filter(items, &(&1["type"] == "file"))
+      dirs = Enum.filter(items, &(&1["type"] == "directory"))
+
+      subdir_files =
+        dirs
+        |> Enum.flat_map(fn dir ->
+          case get_files_recursive(repo_id, revision, dir["path"]) do
+            {:ok, subfiles} -> subfiles
+            _ -> []
+          end
+        end)
+
+      {:ok, files ++ subdir_files}
+    rescue
+      e -> {:error, Exception.message(e)}
+    end
+  end
+
+  defp download_file(repo_id, path, local_dir, info, current, total, use_otel) do
+    url = "#{@base_url}/#{repo_id}/resolve/main/#{path}"
+    local_path = Path.join(local_dir, path)
+    file_size = info["size"] || 0
+    size_mb = if file_size > 0, do: Float.round(file_size / 1024 / 1024, 1), else: 0
+    filename = Path.basename(path)
+    IO.write("\r  [#{current}/#{total}] Downloading: #{filename} (#{size_mb} MB)")
+
+    if File.exists?(local_path) do
+      IO.write("\r  [#{current}/#{total}] Skipped (exists): #{filename}")
+    else
+      local_path
+      |> Path.dirname()
+      |> File.mkdir_p!()
+
+      result = Req.get(url,
+        into: File.stream!(local_path, [], 65536),
+        retry: :transient,
+        max_redirects: 10
+      )
+
+      case result do
+        {:ok, %{status: 200}} -> IO.write("\r  [#{current}/#{total}] ✓ #{filename}")
+        %{status: 200} -> IO.write("\r  [#{current}/#{total}] ✓ #{filename}")
+        {:ok, %{status: status}} ->
+          if use_otel do
+            SpanCollector.track_span("download_file_failed", fn ->
+              IO.puts("\n[WARN] Failed to download file: #{path} (status: #{status})")
+            end, [{"download.file_path", path}, {"download.status_code", status}])
+          else
+            IO.puts("\n[WARN] Failed to download file: #{path} (status: #{status})")
+          end
+        %{status: status} ->
+          if use_otel do
+            SpanCollector.track_span("download_file_failed", fn ->
+              IO.puts("\n[WARN] Failed to download file: #{path} (status: #{status})")
+            end, [{"download.file_path", path}, {"download.status_code", status}])
+          else
+            IO.puts("\n[WARN] Failed to download file: #{path} (status: #{status})")
+          end
+        {:error, reason} ->
+          if use_otel do
+            SpanCollector.track_span("download_file_failed", fn ->
+              IO.puts("\n[WARN] Failed to download file: #{path} (#{inspect(reason)})")
+            end, [{"download.file_path", path}, {"error.reason", inspect(reason)}])
+          else
+            IO.puts("\n[WARN] Failed to download file: #{path} (#{inspect(reason)})")
+          end
+      end
+    end
+  end
+end

@@ -20,6 +20,9 @@ defmodule Forge.ZImage do
 
   require Logger
 
+  # Load shared utilities
+  Code.eval_file("lib/forge/shared_utils.exs")
+
   @model_id "Tongyi-MAI/Z-Image-Turbo"
   @weights_dir "priv/pretrained_weights/Z-Image-Turbo"
 
