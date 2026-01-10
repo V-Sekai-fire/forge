@@ -150,11 +150,13 @@ Oban worker for asynchronous Z-Image-Turbo generation.
 ```elixir
 config :livebook_nx, Oban,
   queues: [
-    default: 5,  # System jobs
+    default: 5,  # System jobs (maintenance, cleanup)
     ml: 8        # Shared ML inference queue (zimage, qwen3vl, etc.)
   ],
   repo: LivebookNx.Repo
 ```
+
+The `ml` queue is shared across all machine learning tasks, allowing efficient resource utilization. The `default` queue handles system maintenance jobs.
 
 ### LivebookNx.Application
 
@@ -303,7 +305,7 @@ end
 # Oban job queue configuration
 config :livebook_nx, Oban,
   engine: Oban.Engines.Basic,
-  queues: [default: 10, inference: 5],
+  queues: [default: 5, ml: 8],
   repo: LivebookNx.Repo
 ```
 

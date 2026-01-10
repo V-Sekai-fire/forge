@@ -114,8 +114,8 @@ config :livebook_nx, LivebookNx.Repo,
 config :livebook_nx, Oban,
   engine: Oban.Pro.Engines.Smart,
   queues: [
-    default: String.to_integer(System.get_env("OBAN_DEFAULT_QUEUE") || "10"),
-    inference: String.to_integer(System.get_env("OBAN_INFERENCE_QUEUE") || "5")
+    default: String.to_integer(System.get_env("OBAN_DEFAULT_QUEUE") || "5"),
+    ml: String.to_integer(System.get_env("OBAN_ML_QUEUE") || "8")
   ],
   repo: LivebookNx.Repo
 ```

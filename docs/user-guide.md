@@ -17,25 +17,26 @@ This platform enables you to:
 
 - Elixir 1.15+ with Erlang/OTP 26+
 - Python 3.8+ (managed via uv)
-- CockroachDB (optional, for distributed database features)
+- CockroachDB (optional, for job queuing features)
 - SeaweedFS (optional, for distributed file storage)
 
 ### Installation
 
-1. **Clone and setup:**
+1. **Basic setup (no database required):**
 
    ```bash
    git clone <repository-url>
    cd livebook-nx
-   elixir setup.exs
-   ```
-
-2. **Manual setup (alternative):**
-   ```bash
    mix deps.get
    mix compile
-   mix ecto.create  # If using database features
-   mix ecto.migrate
+   ```
+
+2. **Full setup (with database for job queuing):**
+   ```bash
+   mix run tools/generate_certs.exs  # Generate certificates
+   mix crdb.start                    # Start CockroachDB
+   mix ecto.migrate                  # Setup database tables
+   mix run priv/repo/seeds.exs       # Load initial data
    ```
 
 ## Core Features
