@@ -33,7 +33,8 @@ defmodule LivebookNx.MixProject do
       {:postgrex, "~> 0.17"},  # For CockroachDB compatibility
       {:opentelemetry_api, "~> 1.3"},
       {:opentelemetry, "~> 1.3"},
-      {:opentelemetry_exporter, "~> 1.0"}
+      {:opentelemetry_exporter, "~> 1.0"},
+      {:x509, "~> 0.8"}  # For certificate generation
     ]
   end
 end

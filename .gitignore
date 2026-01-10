@@ -108,5 +108,15 @@ thirdparty/UniRig/logs/
 thirdparty/UniRig/lightning_logs/
 thirdparty/UniRig/erl_crash.dump
 
-outputs/*
+# CockroachDB data and logs
+cockroach-data/
+cockroach.err
+cockroach.out
+cockroach-certs/
+
+# CockroachDB binaries (large files)
+tools/cockroach-v*.windows-*.amd64/
+tools/cockroach.zip
+
+# Node modules
 node_modules

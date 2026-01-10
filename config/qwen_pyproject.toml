@@ -1,5 +1,5 @@
 [project]
-name = "qwen3vl-inference"
+name = "livebook-nx-python"
 version = "0.0.0"
 requires-python = "==3.10.*"
 dependencies = [
@@ -10,7 +10,8 @@ dependencies = [
   "torchvision>=0.15.0,<0.20.0",
   "numpy",
   "huggingface-hub",
-  "bitsandbytes",
+  "diffusers @ git+https://github.com/huggingface/diffusers",
+  "gitpython",
 ]
 
 [tool.uv.sources]

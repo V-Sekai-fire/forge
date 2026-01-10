@@ -4,7 +4,7 @@ defmodule LivebookNx.ZImage.Worker do
   """
 
   use Oban.Worker,
-    queue: :zimage,
+    queue: :ml,
     max_attempts: 3,
     unique: [period: 300] # 5 minutes uniqueness
 

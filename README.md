@@ -32,9 +32,14 @@ elixir setup.exs
 mix deps.get
 mix compile
 
-# Optional: Setup database
-mix ecto.create
-mix ecto.migrate
+# Setup CockroachDB with TLS
+mix run tools/generate_certs.exs  # Generate certificates
+mix crdb.start                    # Start CockroachDB with TLS
+mix ecto.migrate                  # Run database migrations
+mix run priv/repo/seeds.exs       # Seed initial data
+
+# Alternative: Full setup
+mix ecto.setup  # Creates DB, runs migrations and seeds
 ```
 
 ### Run Inference
@@ -47,7 +52,40 @@ mix qwen3vl image.jpg "What do you see?"
 mix qwen3vl photo.png "Analyze in detail" --max-tokens 200 --temperature 0.8
 ```
 
-## 📚 Documentation
+## �️ Database Configuration
+
+Livebook Nx uses CockroachDB with TLS encryption for secure, distributed data storage.
+
+### Connection Details
+
+- **Host**: localhost:26257
+- **Database**: livebook_nx_dev
+- **User**: root
+- **Password**: secure_password_123
+- **SSL**: Enabled with client certificates
+
+### Database Management
+
+```bash
+# Start CockroachDB
+mix crdb.start
+
+# Stop CockroachDB
+mix crdb.stop
+
+# View CockroachDB Web UI
+open https://localhost:8080
+```
+
+### Certificate Management
+
+TLS certificates are automatically generated and stored in `cockroach-certs/`:
+
+- `ca.crt` - Certificate Authority
+- `client.root.crt` / `client.root.key` - Client certificates
+- `node.crt` / `node.key` - Node certificates
+
+## �📚 Documentation
 
 - **[📖 User Guide](docs/user-guide.md)** - Complete usage guide
 - **[🛠️ Setup Guide](docs/setup.md)** - Installation and deployment

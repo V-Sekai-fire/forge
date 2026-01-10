@@ -160,4 +160,48 @@ print(response)
     {result, _} = Pythonx.eval(python_code, %{})
     result
   end
+
+  @doc """
+  Queue Qwen3-VL inference for asynchronous processing.
+
+  ## Parameters
+  - `image_path` - Path to the input image
+  - `prompt` - Text prompt for the model
+  - `opts` - Additional options
+
+  ## Options
+  - `:max_tokens` - Maximum tokens to generate (default: 4096)
+  - `:temperature` - Sampling temperature (default: 0.7)
+  - `:top_p` - Top-p sampling (default: 0.9)
+  - `:output_path` - Path to save results (optional)
+  - `:use_flash_attention` - Use flash attention (default: false)
+  - `:use_4bit` - Use 4-bit quantization (default: true)
+
+  ## Examples
+
+      iex> LivebookNx.Qwen3VL.queue_inference("image.jpg", "Describe this image")
+      {:ok, %Oban.Job{}}
+  """
+  @spec queue_inference(String.t(), String.t(), keyword()) :: {:ok, Oban.Job.t()} | {:error, term()}
+  def queue_inference(image_path, prompt, opts \\ []) do
+    config = %{
+      image_path: image_path,
+      prompt: prompt,
+      max_tokens: Keyword.get(opts, :max_tokens, 4096),
+      temperature: Keyword.get(opts, :temperature, 0.7),
+      top_p: Keyword.get(opts, :top_p, 0.9),
+      output_path: Keyword.get(opts, :output_path),
+      use_flash_attention: Keyword.get(opts, :use_flash_attention, false),
+      use_4bit: Keyword.get(opts, :use_4bit, true)
+    }
+
+    case validate_config(struct(__MODULE__, config)) do
+      :ok ->
+        %{config: config}
+        |> LivebookNx.Qwen3VL.Worker.new()
+        |> Oban.insert()
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
 end

@@ -1,18 +1,28 @@
 import Config
 
+# Configure the main application
+config :livebook_nx,
+  ecto_repos: [LivebookNx.Repo]
+
 # Configure Oban
 config :livebook_nx, Oban,
   repo: LivebookNx.Repo,
   plugins: [Oban.Plugins.Pruner],
-  queues: [default: 10, zimage: 2]
+  queues: [default: 5, ml: 8]
 
 # Database
 config :livebook_nx, LivebookNx.Repo,
   database: "livebook_nx_dev",
-  username: "postgres",
-  password: "postgres",
+  username: "root",
+  password: "secure_password_123",
   hostname: "localhost",
-  port: 5432
+  port: 26257,
+  ssl: [
+    cacertfile: "cockroach-certs/ca.crt",
+    certfile: "cockroach-certs/client.root.crt",
+    keyfile: "cockroach-certs/client.root.key"
+  ],
+  migration_lock: nil
 
 # OpenTelemetry
 config :opentelemetry,
@@ -42,13 +52,6 @@ dependencies = [
   "bitsandbytes",
   "diffusers @ git+https://github.com/huggingface/diffusers",
 ]
-
-[tool.uv.sources]
-torch = { index = "pytorch-cu118" }
-torchvision = { index = "pytorch-cu118" }
-
-[[tool.uv.index]]
-name = "pytorch-cu118"
 
 [tool.uv.sources]
 torch = { index = "pytorch-cu118" }

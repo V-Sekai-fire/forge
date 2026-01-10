@@ -149,7 +149,10 @@ Oban worker for asynchronous Z-Image-Turbo generation.
 
 ```elixir
 config :livebook_nx, Oban,
-  queues: [zimage: 2],  # Number of concurrent zimage jobs
+  queues: [
+    default: 5,  # System jobs
+    ml: 8        # Shared ML inference queue (zimage, qwen3vl, etc.)
+  ],
   repo: LivebookNx.Repo
 ```
 

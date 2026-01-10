@@ -168,6 +168,13 @@ defmodule LivebookNx.ZImage do
   end
 
   defp do_generate(%__MODULE__{} = config) do
+    # Initialize Python environment if not already initialized
+    unless Process.whereis(Pythonx.Supervisor) do
+      pyproject_path = Path.join(["config", "qwen_pyproject.toml"])
+      pyproject_content = File.read!(pyproject_path)
+      Pythonx.uv_init(pyproject_content)
+    end
+
     # Create output directory
     timestamp = Calendar.strftime(DateTime.utc_now(), "%Y%m%d_%H_%M_%S")
     output_dir = Path.join(["output", timestamp])
@@ -350,51 +357,7 @@ print(f"OUTPUT_PATH:{output_path}")
 """
 
     try do
-      Pythonx.eval(python_code)
-      :ok
-    rescue
-      e in Pythonx.Error ->
-        {:error, "Python execution failed: #{inspect(e)}"}
-    end
-  end
-        torch_dtype=dtype,
-        trust_remote_code=True
-    )
-else:
-    print(f"Loading from Hugging Face Hub: {MODEL_ID}")
-    pipe = DiffusionPipeline.from_pretrained(
-        MODEL_ID,
-        torch_dtype=dtype,
-        trust_remote_code=True
-    )
-
-pipe = pipe.to(device)
-
-# Set seed
-generator = None
-if #{if config.seed > 0, do: "True", else: "False"}:
-    generator = torch.Generator(device=device).manual_seed(#{config.seed})
-
-# Generate image
-with torch.no_grad():
-    result = pipe(
-        "#{String.replace(config.prompt, "\"", "\\\"")}",
-        width=#{config.width},
-        height=#{config.height},
-        num_inference_steps=#{config.num_steps},
-        guidance_scale=#{config.guidance_scale},
-        generator=generator
-    )
-
-# Save image
-image = result.images[0]
-image.save("#{String.replace(output_path, "\\", "/")}", "#{config.output_format}")
-
-print("Image generated successfully")
-"""
-
-    try do
-      Pythonx.eval(python_code)
+      Pythonx.eval(python_code, %{})
       :ok
     rescue
       e in Pythonx.Error ->
