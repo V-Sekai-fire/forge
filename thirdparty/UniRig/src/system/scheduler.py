@@ -8,7 +8,7 @@ def get_scheduler(optimizer: Optimizer, config) -> LRScheduler:
     MAP = {
         'one_cycle_lr': torch.optim.lr_scheduler.OneCycleLR,
     }
-    
+
     __target__ = config.__target__
     del config.__target__
     assert __target__ in MAP, f"expect: [{','.join(MAP.keys())}], found: {__target__}"

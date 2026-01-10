@@ -15,47 +15,47 @@ class RawData(Exporter):
     '''
     Dataclass to handle data from processed model files.
     '''
-    
+
     # vertices of the mesh, shape (N, 3)
     vertices: Union[ndarray, None]
-    
+
     # normals of vertices, shape (N, 3)
     vertex_normals: Union[ndarray, None]
-    
+
     # faces of mesh, shape (F, 3), face id starts from 0 to F-1
     faces: Union[ndarray, None]
-    
+
     # face normal of mesh, shape (F, 3)
     face_normals: Union[ndarray, None]
-    
+
     # joints of bones, shape (J, 3)
     joints: Union[ndarray, None]
-    
+
     # skinning of joints, shape (N, J)
     skin: Union[ndarray, None]
-    
+
     # parents of joints, None represents no parent(a root joint)
     # make sure parent[k] < k
     parents: Union[List[Union[int, None]], None]
-    
+
     # names of joints
     names: Union[List[str], None]
-    
+
     # local coordinate
     matrix_local: Union[ndarray, None]
-    
+
     # tails of joints, shape (J, 3)
     tails: Union[ndarray, None]=None
-    
+
     # whether the joint has skin, bool
     no_skin: Union[ndarray, None]=None
-    
+
     # path to data
     path: Union[str, None]=None
-    
+
     # data cls
     cls: Union[str, None]=None
-    
+
     @staticmethod
     def load(path: str, origin=np.float16, to=np.float32) -> 'RawData':
         data = np.load(path, allow_pickle=True)
@@ -67,7 +67,7 @@ class RawData(Exporter):
         else:
             d['no_skin'] = None
         return RawData(**d).change_dtype(origin, to)
-    
+
     def change_dtype(self, origin, to) -> 'RawData':
         d = {}
         for k, v in self.__dict__.items():
@@ -75,32 +75,32 @@ class RawData(Exporter):
                 v = v.astype(to)
             d[k] = v
         return RawData(**d)
-    
+
     def save(self, path: str):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         np.savez(file=path, **self.__dict__)
-    
+
     @property
     def N(self):
         '''
         number of vertices
         '''
         return self.vertices.shape[0]
-    
+
     @property
     def F(self):
         '''
         number of faces
         '''
         return self.faces.shape[0]
-    
+
     @property
     def J(self):
         '''
         number of joints
         '''
         return self.joints.shape[0]
-    
+
     def check(self):
         if self.names is not None and self.joints is not None:
             assert len(self.names) == self.J
@@ -113,7 +113,7 @@ class RawData(Exporter):
                 else:
                     assert pid is not None
                     assert pid < i
-    
+
     def export_pc(self, path: str, with_normal: bool=True, normal_size=0.01):
         '''
         export point cloud
@@ -122,25 +122,25 @@ class RawData(Exporter):
             self._export_pc(vertices=self.vertices, path=path, vertex_normals=self.vertex_normals, normal_size=normal_size)
         else:
             self._export_pc(vertices=self.vertices, path=path, vertex_normals=None, normal_size=normal_size)
-    
+
     def export_mesh(self, path: str):
         '''
         export mesh
         '''
         self._export_mesh(vertices=self.vertices, faces=self.faces, path=path)
-    
+
     def export_skeleton(self, path: str):
         '''
         export spring
         '''
         self._export_skeleton(joints=self.joints, parents=self.parents, path=path)
-    
+
     def export_skeleton_sequence(self, path: str):
         '''
         export spring
         '''
         self._export_skeleton_sequence(joints=self.joints, parents=self.parents, path=path)
-    
+
     def export_fbx(
         self,
         path: str,
@@ -174,7 +174,7 @@ class RawData(Exporter):
             extrude_from_parent=extrude_from_parent,
             tails=self.tails if use_tail else None,
         )
-    
+
     def export_render(self, path: str, resolution: Tuple[int, int]=[256, 256]):
         self._export_render(
             path=path,
@@ -191,29 +191,29 @@ class RawSkeleton(Exporter):
     '''
     # joints of bones, shape (J, 3), float32
     joints: Union[ndarray, None]
-    
+
     # tails of joints, shape (J, 3), float32
     tails: Union[ndarray, None]
-    
+
     # whether the joint has skin, bool
     no_skin: Union[ndarray, None]
-    
+
     # parents of joints, None represents no parent(a root joint)
     # make sure parent[k] < k
     parents: Union[List[Union[int, None]], None]
-    
+
     # names of joints
     names: Union[List[str], None]
-    
+
     @staticmethod
     def load(path: str) -> 'RawSkeleton':
         data = np.load(path, allow_pickle=True)
         return RawSkeleton(**{name: data[name][()] for name in data})
-    
+
     def save(self, path: str):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         np.savez(file=path, **self.__dict__)
-    
+
     @staticmethod
     def from_detokenize_output(res: DetokenizeOutput, order: Union[Order, None]) -> 'RawSkeleton':
         J = len(res.bones)
@@ -241,19 +241,19 @@ class RawSkeleton(Exporter):
             parents=parents,
             names=names,
         )
-        
+
     def export_skeleton(self, path: str):
         '''
         export spring
         '''
         self._export_skeleton(joints=self.joints, parents=self.parents, path=path)
-    
+
     def export_skeleton_sequence(self, path: str):
         '''
         export spring
         '''
         self._export_skeleton_sequence(joints=self.joints, parents=self.parents, path=path)
-    
+
     def export_fbx(
         self,
         path: str,
@@ -286,7 +286,7 @@ class RawSkeleton(Exporter):
             extrude_from_parent=extrude_from_parent,
             tails=self.tails if use_tail else None,
         )
-    
+
     def export_render(self, path: str, resolution: Tuple[int, int]=[256, 256]):
         self._export_render(
             path=path,
@@ -303,18 +303,18 @@ class RawSkin(Exporter):
     '''
     # skin, shape (J, N)
     skin: ndarray
-    
+
     # always sampled, shape (N, 3)
     vertices: Union[ndarray, None]=None
-    
+
     # for future use, shape (J, 3)
     joints: Union[ndarray, None]=None
-    
+
     @staticmethod
     def load(path: str) -> 'RawSkin':
         data = np.load(path, allow_pickle=True)
         return RawSkin(**{name: data[name][()] for name in data})
-    
+
     def save(self, path: str):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         np.savez(file=path, **self.__dict__)

@@ -33,16 +33,16 @@ class DatasetConfig(ConfigSpec):
 
     # number of workers
     num_workers: int
-    
+
     # datapath
     datapath_config: DatapathConfig
-    
+
     # use pin memory
     pin_memory: bool = True
-    
+
     # use persistent workers
     persistent_workers: bool = True
-    
+
     @classmethod
     def parse(cls, config) -> 'DatapathConfig':
         cls.check_keys(config)
@@ -54,7 +54,7 @@ class DatasetConfig(ConfigSpec):
             persistent_workers=config.persistent_workers,
             datapath_config=DatapathConfig.parse(config.datapath_config),
         )
-    
+
     def split_by_cls(self) -> Dict[str, 'DatasetConfig']:
         res: Dict[str, DatasetConfig] = {}
         datapath_config_dict = self.datapath_config.split_by_cls()
@@ -63,7 +63,7 @@ class DatasetConfig(ConfigSpec):
             res[cls].datapath_config = datapath_config_dict[cls]
         return res
 
-class UniRigDatasetModule(pl.LightningDataModule):  
+class UniRigDatasetModule(pl.LightningDataModule):
     def __init__(
         self,
         process_fn: Union[Callable[[List[ModelInput]], Dict]]=None,
@@ -90,16 +90,16 @@ class UniRigDatasetModule(pl.LightningDataModule):
         self.tokenizer_config           = tokenizer_config
         self.debug                      = debug
         self.data_name                  = data_name
-        
+
         if debug:
             print("\033[31mWARNING: debug mode, dataloader will be extremely slow !!!\033[0m")
-        
+
         # build train datapath
         if self.train_dataset_config is not None:
             self.train_datapath = Datapath(self.train_dataset_config.datapath_config)
         else:
             self.train_datapath = None
-        
+
         # build validate datapath
         if self.validate_dataset_config is not None:
             self.validate_datapath = {
@@ -108,7 +108,7 @@ class UniRigDatasetModule(pl.LightningDataModule):
             }
         else:
             self.validate_datapath = None
-        
+
         if datapath is not None:
             self.train_datapath = None
             self.validate_datapath = None
@@ -134,7 +134,7 @@ class UniRigDatasetModule(pl.LightningDataModule):
                 }
             else:
                 self.predict_datapath = None
-        
+
         # get tokenizer
         if tokenizer_config is None:
             self.tokenizer = None
@@ -144,7 +144,7 @@ class UniRigDatasetModule(pl.LightningDataModule):
     def prepare_data(self):
         pass
 
-    def setup(self, stage=None):   
+    def setup(self, stage=None):
         if self.predict_datapath is not None:
             self._predict_ds = {}
             for cls in self.predict_datapath:
@@ -157,7 +157,7 @@ class UniRigDatasetModule(pl.LightningDataModule):
                     debug=self.debug,
                     data_name=self.data_name,
                 )
-        
+
         if self.validate_datapath is not None:
             self._validation_ds = {}
             for cls in self.validate_datapath:
@@ -170,7 +170,7 @@ class UniRigDatasetModule(pl.LightningDataModule):
                     debug=self.debug,
                     data_name=self.data_name,
                 )
-    
+
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         # rebuild every time
         assert self.train_datapath is not None, "do not have training data"
@@ -189,7 +189,7 @@ class UniRigDatasetModule(pl.LightningDataModule):
             is_train=True,
             drop_last=False,
         )
-    
+
     def predict_dataloader(self):
         if not hasattr(self, "_predict_ds"):
             self.setup()
@@ -245,7 +245,7 @@ class UniRigDataset(Dataset):
         data_name: str='raw_data.npz',
     ) -> None:
         super().__init__()
-        
+
         self.data               = data
         self.name               = name
         self.process_fn         = process_fn
@@ -253,7 +253,7 @@ class UniRigDataset(Dataset):
         self.transform_config   = transform_config
         self.debug              = debug
         self.data_name          = data_name
-        
+
         if not debug:
             assert self.process_fn is not None, 'missing data processing function'
 
@@ -264,7 +264,7 @@ class UniRigDataset(Dataset):
         cls, dir_path = self.data[idx]
         raw_data = RawData.load(path=os.path.join(dir_path, self.data_name))
         asset = Asset.from_raw_data(raw_data=raw_data, cls=cls, path=dir_path, data_name=self.data_name)
-        
+
         first_augments, second_augments = transform_asset(
             asset=asset,
             transform_config=self.transform_config,
@@ -286,7 +286,7 @@ class UniRigDataset(Dataset):
 
     def _collate_fn_debug(self, batch):
         return batch
-    
+
     def _collate_fn(self, batch):
         return data.dataloader.default_collate(self.process_fn(batch))
 

@@ -13,17 +13,17 @@ from .spec import ConfigSpec
 
 @dataclass
 class TransformConfig(ConfigSpec):
-    
+
     tail_config: Union[TailConfig, None]=None,
-    
+
     order_config: Union[OrderConfig, None]=None,
-    
+
     vertex_group_config: Union[VertexGroupConfig, None]=None,
-    
+
     augment_config: Union[AugmentConfig, None]=None,
-    
+
     sampler_config: Union[SamplerConfig, None]=None,
-    
+
     @classmethod
     def parse(cls, config) -> 'TransformConfig':
         cls.check_keys(config)
@@ -32,7 +32,7 @@ class TransformConfig(ConfigSpec):
         vertex_group_config = config.get('vertex_group_config', None)
         augment_config = config.get('augment_config', None)
         sampler_config = config.get('sampler_config', None)
-        
+
         if tail_config is not None:
             tail_config = TailConfig.parse(config=tail_config)
         if order_config is not None:
@@ -43,7 +43,7 @@ class TransformConfig(ConfigSpec):
             augment_config = AugmentConfig.parse(config=augment_config)
         if sampler_config is not None:
             sampler_config = SamplerConfig.parse(config=sampler_config)
-        
+
         return TransformConfig(
             tail_config=tail_config,
             order_config=order_config,
@@ -62,23 +62,23 @@ def transform_asset(
     if transform_config.tail_config is not None:
         tail = get_tail(config=transform_config.tail_config)
         tail.process_tail(asset=asset)
-    
+
     # 2. arrange bones
     if transform_config.order_config is not None:
         order = get_order(config=transform_config.order_config)
         asset.set_order(order=order)
-    
+
     # 3. collapse must perform first
     if transform_config.augment_config:
         first_augments, second_augments = get_augments(config=transform_config.augment_config)
     else:
         first_augments = []
         second_augments = []
-        
+
     kwargs = {}
     for augment in first_augments:
         augment.transform(asset=asset, **kwargs)
-    
+
     # 4. get vertex groups
     if transform_config.vertex_group_config is not None:
         vertex_groups = get_vertex_groups(config=transform_config.vertex_group_config)
@@ -88,11 +88,11 @@ def transform_asset(
         asset.vertex_groups = d
     else:
         asset.vertex_groups = {}
-    
+
     # 5. regular augments
     for augment in second_augments:
         augment.transform(asset=asset, **kwargs)
-    
+
     # 6. sample
     if transform_config.sampler_config is not None:
         sampler = get_sampler(config=transform_config.sampler_config)

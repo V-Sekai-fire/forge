@@ -33,22 +33,22 @@ defmodule ArgsParser do
   def show_help do
     IO.puts("""
     NX PHI-3 Text Generation Script
-    
+
     Usage:
       elixir nx_phi3.exs [text] [options]
-    
+
     Arguments:
       <text>                    Input text for generation (optional, defaults to example text)
-    
+
     Options:
       --model, -m <model>       Hugging Face model name (default: "gpt2")
       --max-tokens, -t <int>     Maximum number of new tokens to generate (default: 10)
       --help, -h                 Show help message
-    
+
     Examples:
       elixir nx_phi3.exs "Yesterday, I was reading a book and"
       elixir nx_phi3.exs "Hello world" --max-tokens 20 --model "gpt2"
-    
+
     Note: For CUDA support, ensure the following environment variables are set:
       XLA_BUILD=true
       XLA_TARGET=cuda
@@ -121,4 +121,3 @@ case result do
   other -> IO.inspect(other, label: "Result")
 end
 IO.puts("")
-

@@ -19,7 +19,7 @@ def quaternion_to_matrix(x, use_4x4=True) -> FloatTensor:
     r, i, j, k = torch.unbind(quaternions, -1)
     two_s = 2.0 / (quaternions * quaternions).sum(-1)
     device = quaternions.device
-    
+
     if use_4x4:
         o = torch.stack(
             (
@@ -223,7 +223,7 @@ def linear_blend_skinning(
         # (B, 3, N)
         final = g[:, 0:3, :] / (skin.transpose(1, 2).sum(dim=1) + 1e-8).unsqueeze(1)
         return final.permute(0, 2, 1)
-    
+
     elif dims == 2:  # Case: (N, 3+pad)
         if isinstance(vertex, Tensor):
             J = matrix_local.shape[0]

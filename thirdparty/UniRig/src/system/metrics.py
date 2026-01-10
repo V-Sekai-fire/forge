@@ -66,7 +66,7 @@ def J2B(
 ) -> FloatTensor:
     '''
     joints_a: (J1, 3) joint
-    
+
     joints_b: (J2, 3) joint
 
     bones_a: (J1, 6) (position parent, position)
@@ -74,7 +74,7 @@ def J2B(
     bones_b: (J2, 6) (position parent, position)
     '''
     s = continuous_range[1] - continuous_range[0]
-    
+
     def one_way_chamfer_dist(joints_a: FloatTensor, joints_b: FloatTensor) -> FloatTensor:
         # for all points in joints_a, calc distance to the nearest point in joints_b and return average distance
         dist = torch.cdist(joints_a, joints_b)

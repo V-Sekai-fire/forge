@@ -530,7 +530,7 @@ class Embedding(PointModule):
             self.stem.add(norm_layer(embed_channels), name="norm")
         if act_layer is not None:
             self.stem.add(act_layer(), name="act")
-        
+
         if res_linear:
             self.res_linear = nn.Linear(in_channels, embed_channels)
         else:

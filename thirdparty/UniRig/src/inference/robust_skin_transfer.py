@@ -30,7 +30,7 @@ except ImportError as e:
 def compute_barycentric_coordinates(P: np.ndarray, V1: np.ndarray, V2: np.ndarray, V3: np.ndarray) -> np.ndarray:
     """
     Compute barycentric coordinates for points P in triangles (V1, V2, V3).
-    
+
     Args:
         P: #P by 3, query points
         V1: #P by 3, first triangle vertices
@@ -43,23 +43,23 @@ def compute_barycentric_coordinates(P: np.ndarray, V1: np.ndarray, V2: np.ndarra
     v0 = V1 - V3  # V1 relative to V3
     v1 = V2 - V3  # V2 relative to V3
     v2 = P - V3   # P relative to V3
-    
+
     # Compute dot products
     d00 = np.sum(v0 * v0, axis=1)
     d01 = np.sum(v0 * v1, axis=1)
     d11 = np.sum(v1 * v1, axis=1)
     d20 = np.sum(v2 * v0, axis=1)
     d21 = np.sum(v2 * v1, axis=1)
-    
+
     # Compute denominator
     denom = d00 * d11 - d01 * d01
     denom = np.where(np.abs(denom) < 1e-10, 1.0, denom)  # Avoid division by zero
-    
+
     # Compute barycentric coordinates
     b1 = (d11 * d20 - d01 * d21) / denom
     b2 = (d00 * d21 - d01 * d20) / denom
     b3 = 1.0 - b1 - b2
-    
+
     B = np.column_stack([b1, b2, b3])
     return B
 
@@ -67,7 +67,7 @@ def compute_barycentric_coordinates(P: np.ndarray, V1: np.ndarray, V2: np.ndarra
 def find_closest_point_on_surface(P: np.ndarray, V: np.ndarray, F: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Given points, find their closest points on the surface of the V,F mesh.
-    
+
     Args:
         P: #P by 3, where every row is a point coordinate
         V: #V by 3 mesh vertices
@@ -90,7 +90,7 @@ def find_closest_point_on_surface(P: np.ndarray, V: np.ndarray, F: np.ndarray) -
 def interpolate_attribute_from_bary(A: np.ndarray, B: np.ndarray, I: np.ndarray, F: np.ndarray) -> np.ndarray:
     """
     Interpolate per-vertex attributes A via barycentric coordinates B of the F[I,:] vertices.
-    
+
     Args:
         A: #V by N per-vertex attributes
         B: #B by 3 array of the barycentric coordinates of some points
@@ -103,11 +103,11 @@ def interpolate_attribute_from_bary(A: np.ndarray, B: np.ndarray, I: np.ndarray,
     a1 = A[F_closest[:, 0], :]
     a2 = A[F_closest[:, 1], :]
     a3 = A[F_closest[:, 2], :]
-    
+
     b1 = B[:, 0].reshape(-1, 1)
     b2 = B[:, 1].reshape(-1, 1)
     b3 = B[:, 2].reshape(-1, 1)
-    
+
     A_out = a1 * b1 + a2 * b2 + a3 * b3
     return A_out
 
@@ -129,7 +129,7 @@ def find_matches_closest_surface(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     For each vertex on the target mesh find a match on the source mesh.
-    
+
     Args:
         V1: #V1 by 3 source mesh vertices
         F1: #F1 by 3 source mesh triangles indices
@@ -140,18 +140,18 @@ def find_matches_closest_surface(
         W1: #V1 by num_bones source mesh skin weights
         dDISTANCE_THRESHOLD_SQRD: scalar distance threshold
         dANGLE_THRESHOLD_DEGREES: scalar normal threshold
-    
+
     Returns:
         Matched: #V2 array of bools, where Matched[i] is True if we found a good match
         W2: #V2 by num_bones, skinning weights copied from source using closest point method
     """
     Matched = np.zeros(V2.shape[0], dtype=bool)
     sqrD, I, C, B = find_closest_point_on_surface(V2, V1, F1)
-    
+
     # Interpolate per-vertex attributes (skin weights and normals) using barycentric coordinates
     W2 = interpolate_attribute_from_bary(W1, B, I, F1)
     N1_match_interpolated = interpolate_attribute_from_bary(N1, B, I, F1)
-    
+
     # Check that the closest point passes our distance and normal thresholds
     for RowIdx in range(V2.shape[0]):
         n1 = normalize_vec(N1_match_interpolated[RowIdx, :])
@@ -160,7 +160,7 @@ def find_matches_closest_surface(
         deg_angle = math.degrees(rad_angle)
         if sqrD[RowIdx] <= dDISTANCE_THRESHOLD_SQRD and deg_angle <= dANGLE_THRESHOLD_DEGREES:
             Matched[RowIdx] = True
-    
+
     return Matched, W2
 
 
@@ -173,13 +173,13 @@ def is_valid_array(sparse_matrix) -> bool:
 def inpaint(V2: np.ndarray, F2: np.ndarray, W2: np.ndarray, Matched: np.ndarray) -> Tuple[np.ndarray, bool]:
     """
     Inpaint weights for all vertices on the target mesh for which we didn't find a good match.
-    
+
     Args:
         V2: #V2 by 3 target mesh vertices
         F2: #F2 by 3 target mesh triangles indices
         W2: #V2 by num_bones, skinning weights copied from source
         Matched: #V2 array of bools, True if we found a good match
-    
+
     Returns:
         W_inpainted: #V2 by num_bones, final skinning weights with inpainting
         success: True if inpainting succeeded, False otherwise
@@ -190,55 +190,55 @@ def inpaint(V2: np.ndarray, F2: np.ndarray, W2: np.ndarray, Matched: np.ndarray)
     except Exception as e:
         # If Laplacian computation fails, return interpolated weights
         return W2, False
-    
+
     # Use MASSMATRIX_TYPE_VORONOI if available, otherwise use numeric constant (1)
     try:
         mass_type = igl.MASSMATRIX_TYPE_VORONOI
     except AttributeError:
         mass_type = 1  # MASSMATRIX_TYPE_VORONOI = 1
-    
+
     try:
         M = igl.massmatrix(V2, F2, mass_type)
         Minv = diags(1 / M.diagonal())
     except Exception as e:
         # If mass matrix computation fails, return interpolated weights
         return W2, False
-    
+
     if not is_valid_array(L):
         # Laplacian is invalid (contains NaN/Inf), return interpolated weights
         return W2, False
-    
+
     if not is_valid_array(Minv):
         # Mass matrix inverse is invalid, return interpolated weights
         return W2, False
-    
+
     try:
         Q = -L + L @ Minv @ L
     except Exception as e:
         # If matrix multiplication fails, return interpolated weights
         return W2, False
-    
+
     if not is_valid_array(Q):
         # System matrix is invalid, return interpolated weights
         return W2, False
-    
+
     # Convert Q to csc_matrix format explicitly
     Q = csc_matrix(Q)
-    
+
     # Set up boundary conditions
     Aeq = csc_matrix((0, 0))
     Beq = np.empty((0, 0), dtype=np.float64)  # Must be 2D array with shape (0, 0)
     B = np.zeros((L.shape[0], W2.shape[1]), dtype=np.float64)
-    
+
     b = np.array(range(0, int(V2.shape[0])), dtype=np.int64)
     b = b[Matched]
     bc = W2[Matched, :].astype(np.float64)
-    
+
     # Check if we have any matched vertices - if not, can't do inpainting
     if len(b) == 0:
         # No matched vertices, return interpolated weights
         return W2, False
-    
+
     # Use keyword arguments to match the expected function signature
     # The Python bindings expect: A, B, known, Y, Aeq, Beq, pd
     # The function returns a single array, not a tuple
@@ -253,7 +253,7 @@ def inpaint(V2: np.ndarray, F2: np.ndarray, W2: np.ndarray, Matched: np.ndarray)
         # If inpainting fails, return interpolated weights
         W_inpainted = W2
         success = False
-    
+
     return W_inpainted, success
 
 
@@ -263,7 +263,7 @@ def smooth(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Smooth weights in areas where weights were inpainted and their close neighbors.
-    
+
     Args:
         V2: #V2 by 3 target mesh vertices
         F2: #F2 by 3 target mesh triangles indices
@@ -272,17 +272,17 @@ def smooth(
         dDISTANCE_THRESHOLD: scalar distance threshold
         num_smooth_iter_steps: scalar number of smoothing steps
         smooth_alpha: scalar the smoothing strength
-    
+
     Returns:
         W2_smoothed: #V2 by num_bones new smoothed weights
         VIDs_to_smooth: 1D array of vertex IDs for which smoothing was applied
     """
     NotMatched = ~Matched
     VIDs_to_smooth = np.array(NotMatched, copy=True)
-    
+
     # Build adjacency list
     adj_list = igl.adjacency_list(F2)
-    
+
     def get_points_within_distance(V: np.ndarray, VID: int, distance: float = dDISTANCE_THRESHOLD):
         """Get all neighbours of vertex VID within distance threshold."""
         queue = [VID]
@@ -296,11 +296,11 @@ def smooth(
                     if nn not in visited:
                         queue.append(nn)
                         visited.add(nn)
-    
+
     for i in range(V2.shape[0]):
         if NotMatched[i]:
             get_points_within_distance(V2, i)
-    
+
     W2_smoothed = np.array(W2, copy=True)
     for step_idx in range(num_smooth_iter_steps):
         for i in range(V2.shape[0]):
@@ -314,7 +314,7 @@ def smooth(
                         weight_connected = W2_smoothed[influence_idx, :]
                         new_weight += (weight_connected / num) * smooth_alpha
                     W2_smoothed[i, :] = new_weight
-    
+
     return W2_smoothed, VIDs_to_smooth
 
 
@@ -329,7 +329,7 @@ def robust_skin_weights_transfer(
 ) -> Tuple[np.ndarray, bool]:
     """
     Perform robust weight transfer from source mesh to target mesh.
-    
+
     Args:
         V1: #V1 by 3 source mesh vertices
         F1: #F1 by 3 source mesh triangles indices
@@ -341,7 +341,7 @@ def robust_skin_weights_transfer(
         num_smooth_iter_steps: Number of smoothing iterations
         smooth_alpha: Smoothing strength
         use_smoothing: Whether to apply smoothing step
-    
+
     Returns:
         W2: #V2 by num_bones target mesh skin weights
         success: True if transfer succeeded
@@ -349,7 +349,7 @@ def robust_skin_weights_transfer(
     # Compute normals
     N1 = igl.per_vertex_normals(V1, F1)
     N2 = igl.per_vertex_normals(V2, F2)
-    
+
     # Set default search radius if not provided
     if SearchRadius is None:
         # Compute bounding box diagonal manually if igl.bounding_box_diagonal doesn't exist
@@ -361,20 +361,20 @@ def robust_skin_weights_transfer(
             bbox_max = np.max(V2, axis=0)
             bbox_diag = np.linalg.norm(bbox_max - bbox_min)
         SearchRadius = 0.05 * bbox_diag
-    
+
     SearchRadiusSqrd = SearchRadius * SearchRadius
-    
+
     # Step 1: Find matches
     Matched, SkinWeights_interpolated = find_matches_closest_surface(
         V1, F1, N1, V2, F2, N2, W1, SearchRadiusSqrd, NormalThreshold
     )
-    
+
     # Step 2: Inpaint unmatched vertices
     InpaintedWeights, success = inpaint(V2, F2, SkinWeights_interpolated, Matched)
-    
+
     if not success:
         return SkinWeights_interpolated, False
-    
+
     # Step 3: Optional smoothing
     if use_smoothing:
         SmoothedInpaintedWeights, _ = smooth(

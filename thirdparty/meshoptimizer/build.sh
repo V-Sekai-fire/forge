@@ -18,4 +18,3 @@ cmake --build . --config Release
 
 echo "Build complete! Library should be in build/"
 echo "Library path: $(find . -name 'libmeshoptimizer.*' -o -name 'meshoptimizer.*' | head -1)"
-

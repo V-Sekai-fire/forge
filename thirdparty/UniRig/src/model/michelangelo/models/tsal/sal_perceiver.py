@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # This file is part of UniRig.
-# 
+#
 # This file is derived from https://github.com/NeuralCarver/Michelangelo
 #
 # Copyright (c) https://github.com/NeuralCarver/Michelangelo original authors
@@ -117,13 +117,13 @@ class CrossAttentionEncoder(nn.Module):
         """
         if self.query_method:
             token_num = self.num_latents
-            bs = pc.shape[0] 
-            data = self.fourier_embedder(pc) 
-            if feats is not None: 
+            bs = pc.shape[0]
+            data = self.fourier_embedder(pc)
+            if feats is not None:
                 data = torch.cat([data, feats], dim=-1)
-            data = self.input_proj(data) 
+            data = self.input_proj(data)
 
-            query = repeat(self.query, "m c -> b m c", b=bs) 
+            query = repeat(self.query, "m c -> b m c", b=bs)
 
             latents = self.cross_attn(query, data)
             latents = self.self_attn(latents)
@@ -149,7 +149,7 @@ class CrossAttentionEncoder(nn.Module):
             pre_feats = feats[:,ind,:]
 
 
-            B, N, D = pre_pc.shape           
+            B, N, D = pre_pc.shape
             C = pre_feats.shape[-1]
             ###### fps
             pos = pre_pc.view(B*N, D)
@@ -167,22 +167,22 @@ class CrossAttentionEncoder(nn.Module):
 
             ######
             if self.use_full_input:
-                data = self.fourier_embedder(pc) 
+                data = self.fourier_embedder(pc)
             else:
-                data = self.fourier_embedder(pre_pc) 
+                data = self.fourier_embedder(pre_pc)
 
-            if feats is not None: 
+            if feats is not None:
                 if not self.use_full_input:
                     feats = pre_feats
-                data = torch.cat([data, feats], dim=-1) 
-            data = self.input_proj(data) 
+                data = torch.cat([data, feats], dim=-1)
+            data = self.input_proj(data)
 
-            sampled_data = self.fourier_embedder(sampled_pc) 
-            if feats is not None: 
-                sampled_data = torch.cat([sampled_data, sampled_feats], dim=-1) 
-            sampled_data = self.input_proj(sampled_data) 
+            sampled_data = self.fourier_embedder(sampled_pc)
+            if feats is not None:
+                sampled_data = torch.cat([sampled_data, sampled_feats], dim=-1)
+            sampled_data = self.input_proj(sampled_data)
 
-            latents = self.cross_attn(sampled_data, data) 
+            latents = self.cross_attn(sampled_data, data)
             latents = self.self_attn(latents)
 
             if self.ln_post is not None:
@@ -342,7 +342,7 @@ class ShapeAsLatentPerceiver(ShapeAsLatentModule):
             self.latent_shape = (num_latents, embed_dim)
             if self.residual_kl:
                 assert self.post_kl.out_features % self.post_kl.in_features == 0
-                assert self.pre_kl.in_features % self.pre_kl.out_features == 0 
+                assert self.pre_kl.in_features % self.pre_kl.out_features == 0
         else:
             self.latent_shape = (num_latents, width)
 

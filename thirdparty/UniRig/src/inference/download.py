@@ -6,7 +6,7 @@ def download(ckpt_name: str) -> str:
         'experiments/skin/articulation-xl/model.ckpt': 'skin/articulation-xl/model.ckpt',
         'experiments/skin/skeleton/model.ckpt': 'skin/skeleton/model.ckpt',
     }
-    
+
     try:
         if ckpt_name not in MAP:
             print(f"not found: {ckpt_name}")

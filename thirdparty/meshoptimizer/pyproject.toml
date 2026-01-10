@@ -39,4 +39,3 @@ py-modules = ["meshoptimizer"]
 
 [tool.setuptools.package-data]
 "*" = ["*.so", "*.dylib", "*.dll", "*.h"]
-

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # This file is part of UniRig.
-# 
+#
 # This file is derived from https://github.com/NeuralCarver/Michelangelo
 #
 # Copyright (c) https://github.com/NeuralCarver/Michelangelo original authors
@@ -41,7 +41,7 @@ def flash_attention(q, k, v):
         v = v.transpose(1, 2)
         out = F.scaled_dot_product_attention(q, k, v)
         out = out.transpose(1, 2)
-        # print("use flash atten 2")   
+        # print("use flash atten 2")
 
     return out
 

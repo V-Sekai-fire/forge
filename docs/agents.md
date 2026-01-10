@@ -70,10 +70,10 @@ Most scripts follow this consistent pattern:
 
 1. **Header**: SPDX license, copyright, description
 2. **Dependencies**: `Mix.install` with required packages
-3. **OpenTelemetry Setup**: Configuration (can be disabled with `--disable-telemetry`) - *Python-based scripts only*
-4. **Shared Utilities**: `Code.eval_file("shared_utils.exs")` - *Python-based scripts only*
+3. **OpenTelemetry Setup**: Configuration (can be disabled with `--disable-telemetry`) - _Python-based scripts only_
+4. **Shared Utilities**: `Code.eval_file("shared_utils.exs")` - _Python-based scripts only_
 5. **Argument Parsing**: `ArgsParser` module for CLI arguments
-6. **Main Logic**: 
+6. **Main Logic**:
    - Python-based scripts: Orchestration of Python execution via `Pythonx`
    - Native Elixir scripts: Direct use of NX/Bumblebee APIs
 7. **Error Handling**: Standardized error handling and logging
@@ -205,6 +205,7 @@ Python code also integrates with OpenTelemetry:
 ### Span Usage Patterns
 
 **Elixir:**
+
 ```elixir
 SpanCollector.track_span("operation.name", fn ->
   # Operation code
@@ -212,6 +213,7 @@ end, [{"attribute.key", "value"}])
 ```
 
 **Python:**
+
 ```python
 with tracer.start_as_current_span("operation.name") as span:
     span.set_attribute("key", "value")
@@ -441,4 +443,3 @@ Fix OpenTelemetry span usage in Python code
 - Pythonx Documentation: https://hexdocs.pm/pythonx/
 - OpenTelemetry Elixir: https://hexdocs.pm/opentelemetry/
 - Hugging Face API: https://huggingface.co/docs/api-inference/index
-

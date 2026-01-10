@@ -13,43 +13,43 @@ class TokenizerPart(TokenizerSpec):
         config: TokenizerConfig,
     ):
         super().__init__()
-        
+
         self._num_discrete      = config.num_discrete
         self._continuous_range  = config.continuous_range
         self.cls_token_id       = config.cls_token_id.copy()
         self.parts_token_id     = config.parts_token_id.copy()
         self.order              = get_order(config.order_config)
         _offset                 = config.num_discrete
-        
+
         self.token_id_branch = _offset + 0
         self.token_id_bos    = _offset + 1
         self.token_id_eos    = _offset + 2
         self.token_id_pad    = _offset + 3
         _offset += 4
-        
+
         self.token_id_spring   = _offset + 0
         _offset += 1
-        
+
         assert None not in self.parts_token_id
         for i in self.parts_token_id:
             self.parts_token_id[i] += _offset
         _offset += len(self.parts_token_id)
-        
+
         self.token_id_cls_none = _offset + 0
         _offset += 1
-        
+
         for i in self.cls_token_id:
             self.cls_token_id[i] += _offset
         _offset += len(self.cls_token_id)
-        
+
         self._vocab_size = _offset
-        
+
         self.parts_token_id_name = [x for x in self.parts_token_id]
-        
+
         self.part_token_to_name = {v: k for k, v in self.parts_token_id.items()}
         assert len(self.part_token_to_name) == len(self.parts_token_id), 'names with same token found in parts_token_id'
         self.part_token_to_name[self.token_id_spring] = None
-        
+
         self.cls_token_to_name = {v: k for k, v in self.cls_token_id.items()}
         assert len(self.cls_token_to_name) == len(self.cls_token_id), 'names with same token found in cls_token_id'
 
@@ -57,11 +57,11 @@ class TokenizerPart(TokenizerSpec):
         if cls not in self.cls_token_id:
             return self.token_id_cls_none
         return self.cls_token_id[cls]
-    
+
     def part_name_to_token(self, part: str) -> int:
         assert part in self.parts_token_id, f"do not find part name    `{part}` in tokenizer"
         return self.parts_token_id[part]
-    
+
     def next_posible_token(self, ids: ndarray) -> List[int]:
         if ids.shape[0] == 0 or ids.ndim == 0:
             return [self.token_id_bos]
@@ -142,7 +142,7 @@ class TokenizerPart(TokenizerSpec):
         else:
             assert 0, state
         return s
-    
+
     def bones_in_sequence(self, ids: ndarray):
         assert ids.ndim == 1, "expect an array"
         s = 0
@@ -182,15 +182,15 @@ class TokenizerPart(TokenizerSpec):
             if id == self.token_id_eos:
                 break
         return s
-    
+
     def tokenize(self, input: TokenizeInput) -> ndarray:
         num_bones = input.num_bones
         bones = discretize(t=input.bones, continuous_range=self.continuous_range, num_discrete=self.num_discrete)
         tails = discretize(t=input.tails, continuous_range=self.continuous_range, num_discrete=self.num_discrete)
-        
+
         branch = input.branch
         is_leaf = input.is_leaf
-        
+
         tokens = [self.token_id_bos]
         if input.cls is None or input.cls not in self.cls_token_id:
             tokens.append(self.token_id_cls_none)
@@ -220,7 +220,7 @@ class TokenizerPart(TokenizerSpec):
                 tokens.append(bones[i, 5])
         tokens.append(self.token_id_eos)
         return np.array(tokens, dtype=np.int64)
-            
+
 
     def detokenize(self, ids: ndarray, **kwargs) -> DetokenizeOutput:
         assert isinstance(ids, ndarray), 'expect ids to be ndarray'
@@ -312,10 +312,10 @@ class TokenizerPart(TokenizerSpec):
             names=names,
             continuous_range=self.continuous_range,
         )
-    
+
     def get_require_parts(self) -> List[str]:
         return self.parts_token_id_name
-            
+
     @property
     def vocab_size(self):
         return self._vocab_size
@@ -323,7 +323,7 @@ class TokenizerPart(TokenizerSpec):
     @property
     def pad(self):
         return self.token_id_pad
-    
+
     @property
     def bos(self):
         return self.token_id_bos
@@ -331,11 +331,11 @@ class TokenizerPart(TokenizerSpec):
     @property
     def eos(self):
         return self.token_id_eos
-    
+
     @property
     def num_discrete(self):
         return self._num_discrete
-    
+
     @property
     def continuous_range(self) -> Tuple[float, float]:
         return self._continuous_range

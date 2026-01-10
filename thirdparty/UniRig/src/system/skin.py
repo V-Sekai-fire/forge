@@ -28,7 +28,7 @@ def _get_item(x):
     return x
 
 class SkinSystem(L.LightningModule):
-    
+
     def __init__(
         self,
         steps_per_epoch: int,
@@ -52,14 +52,14 @@ class SkinSystem(L.LightningModule):
         self.scheduler_config   = scheduler_config
         self.optimizer_config   = optimizer_config
         self.loss_config        = loss_config
-        
+
         if self.record_res:
             assert self.output_path is not None, "record_res is True, but output_path in skin is None"
-        
+
         if loss_config is not None:
             assert 'loss_sum' not in loss_config, 'loss cannot be named `loss_sum`'
             assert 'val_loss_sum' not in loss_config, 'loss cannot be named `val_loss_sum`'
-    
+
     def on_validation_batch_start(self, batch, batch_idx: int, dataloader_idx: int = 0):
         if self.record_res:
             os.makedirs(self.output_path, exist_ok=True)
@@ -68,7 +68,7 @@ class SkinSystem(L.LightningModule):
         # Compute the 2-norm for each layer
         # If using mixed precision, the gradients are already unscaled here
         norms = grad_norm(self.model, norm_type=2)
-        total_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0) 
+        total_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
         self.log_dict(norms, sync_dist=False)
 
     def forward(self, batch, validate: bool=False) -> Dict[str, Tensor]:
@@ -82,7 +82,7 @@ class SkinSystem(L.LightningModule):
                 loss_sum += self.loss_config[name] * loss_dict[name]
             self._validation_loss[f"val_{cls}_loss_sum"].append(_get_item(loss_sum))
             self._validation_loss['val_loss_sum'].append(_get_item(loss_sum))
-            
+
             if self.record_res:
                 vertices_gt = loss_dict['vertices_gt']
                 vertices_pred = loss_dict['vertices_pred']
@@ -104,7 +104,7 @@ class SkinSystem(L.LightningModule):
             self.log_dict(log_loss_dict, prog_bar=True, logger=True, sync_dist=False)
         self.log('batch_size', len(batch['cls'])) # must explicitly report batch_size to make lr scheduler correct
         return loss_sum
-    
+
     def training_step(self, batch, batch_idx, dataloader_idx=None) -> Tensor:
         assert self.loss_config is not None
 
@@ -117,21 +117,21 @@ class SkinSystem(L.LightningModule):
         self.log('epoch', self.current_epoch, prog_bar=False, logger=True)
 
         return self.forward(batch)
-    
+
     def validation_step(self, batch, batch_idx, dataloader_idx=None) -> Tensor:
         assert self.loss_config is not None
         return self.forward(batch, validate=True)
-    
+
     def on_validation_epoch_start(self):
         self._validation_loss = defaultdict(list)
-    
+
     def on_validation_batch_start(self, batch, batch_idx, dataloader_idx=0):
         torch.cuda.empty_cache()
         pass
-    
+
     def on_validation_batch_end(self, outputs, batch, batch_idx, dataloader_idx=0):
         pass
-    
+
     def on_validation_epoch_end(self):
         # calculate per class validation loss
         for (cls, d) in self._validation_loss.items():
@@ -145,10 +145,10 @@ class SkinSystem(L.LightningModule):
             self._validation_loss[cls] = sum
         d = dict(sorted(self._validation_loss.items()))
         self.log_dict(d, prog_bar=False, logger=True, sync_dist=True)
-    
+
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
         res = self.model.predict_step(batch)
-        
+
         if isinstance(res, list):
             return {
                 'skin_pred': res,
@@ -158,7 +158,7 @@ class SkinSystem(L.LightningModule):
             return res
         else:
             assert 0, f"expect type of prediction from {self.model.__class__} to be a list or dict, found: {type(res)}"
-    
+
     def configure_optimizers(self) -> Dict:
         _d = {}
         optimizer = get_optimizer(model=self.model, config=self.optimizer_config)
@@ -171,7 +171,7 @@ class SkinSystem(L.LightningModule):
                 'frequency': 1,
             }
         _d['optimizer'] = optimizer
-        
+
         return _d
 
 class SkinWriter(BasePredictionWriter):
@@ -195,7 +195,7 @@ class SkinWriter(BasePredictionWriter):
             self.order = get_order(config=order_config)
         else:
             self.order = None
-        
+
         self._epoch = 0
 
     def write_on_batch_end(self, trainer, pl_module: SkinSystem, prediction: List[Dict], batch_indices, batch, batch_idx, dataloader_idx):
@@ -211,7 +211,7 @@ class SkinWriter(BasePredictionWriter):
         vertices: FloatTensor = batch['origin_vertices']
         sampled_vertices: FloatTensor = batch['vertices']
         faces: LongTensor = batch['origin_faces']
-        
+
         joints = joints.detach().cpu().numpy()
         tails = tails.detach().cpu().numpy()
         parents_list = parents_list.detach().cpu().numpy()
@@ -230,9 +230,9 @@ class SkinWriter(BasePredictionWriter):
         for (id, skin_pred) in enumerate(skin_pred_list):
             if isinstance(skin_pred, Tensor):
                 skin_pred = skin_pred.type(torch.float32).detach().cpu().numpy()
-                
+
             # TODO: add custom post-processing here
-            
+
             # resample
             N = num_points[id]
             J = num_bones[id]
@@ -257,7 +257,7 @@ class SkinWriter(BasePredictionWriter):
                 alpha=2.0,
                 threshold=0.03,
             )
-            
+
             def make_path(save_name: str, suffix: str, trim: bool=False):
                 if trim:
                     path = os.path.relpath(paths[id], self.npz_dir)
@@ -266,13 +266,13 @@ class SkinWriter(BasePredictionWriter):
 
                 if self.output_dir is not None:
                     path = os.path.join(self.output_dir, path)
-                
+
                 if self.add_num:
                     path = os.path.join(path, f"{save_name}_{self._epoch}.{suffix}")
                 else:
                     path = os.path.join(path, f"{save_name}.{suffix}")
                 return path
-            
+
             raw_data = RawSkin(skin=skin_pred, vertices=sampled_vertices[id], joints=joints[id, :J])
             if self.export_npz is not None:
                 raw_data.save(path=make_path(self.export_npz, 'npz'))
@@ -305,7 +305,7 @@ class SkinWriter(BasePredictionWriter):
                     )
                 except Exception as e:
                     print(str(e))
-    
+
     def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
         self._epoch += 1
 
@@ -322,9 +322,9 @@ def reskin(
     iter_steps = kwargs.get('iter_steps', 1)
     threshold = kwargs.get('threshold', 0.01)
     alpha = kwargs.get('alpha', 2)
-    
+
     assert sample_method in ['mean', 'median']
-    
+
     N = vertices.shape[0]
     J = sampled_skin.shape[1]
     if sample_method == 'mean':
@@ -341,7 +341,7 @@ def reskin(
         skin = np.median(sampled_skin[nearest], axis=1)
     else:
         assert 0
-    
+
     # (from, to)
     edges = np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]], axis=0)
     edges = np.concatenate([edges, edges[:, [1, 0]]], axis=0) # (2*F*3, 2)
@@ -378,5 +378,5 @@ def reskin(
     mask = (skin>=threshold).any(axis=-1, keepdims=True)
     skin[(skin<threshold)&mask] = 0.
     skin = skin / skin.sum(axis=-1, keepdims=True)
-    
+
     return skin

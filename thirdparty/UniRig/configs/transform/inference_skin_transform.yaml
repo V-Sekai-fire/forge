@@ -12,7 +12,7 @@ order_config: &order_config
     vroid: ./configs/skeleton/vroid.yaml
     mixamo: ./configs/skeleton/mixamo.yaml
 
-predict_transform_config: 
+predict_transform_config:
   augment_config:
     augment_affine_config:
       normalize_into: [-1.0, 1.0]

@@ -9,10 +9,10 @@ class Entry:
         self.entry = entry_name
         self.error = None
         self.warning = []
-    
+
     def have_error(self):
         return self.error != None
-    
+
     def have_warning(self):
         return len(self.warning) != 0
 
