@@ -4,13 +4,15 @@ This document provides essential context and guidelines for AI coding agents wor
 
 ## Project Overview
 
-This repository contains a collection of Elixir-based CLI scripts for AI/ML model inference and generation tasks. Most scripts use Python (via `Pythonx`) for model execution, while some use native Elixir ML libraries (NX/Bumblebee). All scripts integrate with Hugging Face for model downloads and follow a consistent architecture pattern with shared utilities, OpenTelemetry observability, and standardized error handling.
+This repository is an Elixir OTP application for AI/ML model inference and generation tasks with database persistence and background job processing. The application uses multiple architectures: GenServer-based services for Python (via `Pythonx`) execution, native Elixir ML libraries (NX/Bumblebee), and background job queues (Oban). All components integrate with Hugging Face for model downloads and follow a consistent architecture pattern with shared utilities, OpenTelemetry observability, and standardized error handling.
 
 ### Key Technologies
 
-- **Language**: Elixir (CLI scripts using `Mix.install`)
-- **Python Integration**: `Pythonx` library for executing Python code (most scripts)
-- **Native Elixir ML**: `NX` (Numerical Elixir) and `Bumblebee` for native ML inference (some scripts)
+- **Language**: Elixir (OTP application with proper Mix project structure)
+- **Python Integration**: `Pythonx` library for executing Python code (GenServer workers)
+- **Native Elixir ML**: `NX` (Numerical Elixir), `Bumblebee` for native ML inference
+- **Database**: CockroachDB with Ecto for persistence
+- **Background Jobs**: Oban for asynchronous task processing
 - **Python Package Management**: `uv` (via Pythonx)
 - **Observability**: OpenTelemetry with AppSignal integration
 - **Model Source**: Hugging Face model repositories
@@ -21,15 +23,46 @@ This repository contains a collection of Elixir-based CLI scripts for AI/ML mode
 
 ```
 livebook-nx/
-├── *.exs                    # Main generation/inference scripts
-├── shared_utils.exs        # Shared utilities and modules
+├── lib/                    # OTP application modules
+│   ├── livebook_nx/        # Main application namespace
+│   │   ├── application.ex   # OTP application supervisor
+│   │   ├── server.ex        # GenServer for service orchestration
+│   │   ├── repo.ex          # Ecto database repository
+│   │   ├── shared_utils.exs # Shared utilities and modules
+│   │   ├── zimage.ex        # Z-Image-Turbo generation module
+│   │   └── qwen3vl.ex       # Qwen3-VL inference module
+│   └── mix/tasks/          # Mix CLI tasks
+├── test/                   # Test files
+├── config/                 # Configuration files
+├── priv/                   # Private resources and migrations
+├── elixir/                 # Legacy CLI scripts (being phased out)
+├── tools/                  # Build and deployment tools
 ├── output/                 # Generated outputs (timestamped directories)
 ├── pretrained_weights/     # Cached model weights
 ├── thirdparty/             # Third-party dependencies and tools
-└── AGENTS.md              # This file
+└── AGENTS.md               # This file
 ```
 
-### Main Scripts
+### Application Modules
+
+#### OTP Application (`lib/livebook_nx/`)
+
+- **LivebookNx.Application**: OTP application supervisor tree
+- **LivebookNx.Server**: GenServer orchestrating database, AI inference, and background jobs
+- **LivebookNx.Repo**: Ecto repository for CockroachDB integration
+- **LivebookNx.ZImage**: Z-Image-Turbo text-to-image generation module
+- **LivebookNx.Qwen3VL**: Qwen3-VL vision-language inference module
+
+#### Mix Tasks (`lib/mix/tasks/`)
+
+- **Mix.Tasks.Crdb.Start**: Start CockroachDB with TLS certificates
+- **Mix.Tasks.Crdb.Stop**: Stop running CockroachDB instance
+- **Mix.Tasks.Zimage**: Generate images using Z-Image-Turbo (CLI interface)
+- **Mix.Tasks.Qwen3VL**: Run Qwen3-VL inference (CLI interface)
+
+#### Legacy CLI Scripts (`elixir/*.exs`)
+
+_Note: These are being phased out in favor of the OTP application architecture_
 
 #### Python-based Scripts (via Pythonx)
 
@@ -79,6 +112,74 @@ Most scripts follow this consistent pattern:
 7. **Error Handling**: Standardized error handling and logging
 
 **Note**: Native Elixir ML scripts (`nx.exs`, `nx_phi3.exs`) do not use Pythonx or shared utilities, and instead use NX/Bumblebee directly for tensor operations and model inference.
+
+### OTP Application Architecture
+
+The core application uses Elixir's OTP framework with proper supervision trees, GenServers, and background job processing.
+
+#### Application Supervisor Tree (`lib/livebook_nx/application.ex`)
+
+- **LivebookNx.Application**: Root supervisor
+  - **LivebookNx.Repo**: Ecto repository supervisor
+  - **LivebookNx.Server**: Main GenServer for service orchestration
+  - **Oban**: Background job processor supervisor
+
+#### GenServer Patterns (`lib/livebook_nx/server.ex`)
+
+The main server follows these patterns:
+
+1. **State Management**: Persistent state for database connections, job counters, and service status
+2. **Synchronous Operations**: Database lifecycle, AI inference calls (`handle_call`)
+3. **Job Statistics**: Tracks completed/failed AI operations
+4. **Graceful Shutdown**: Proper cleanup of database connections and long-running processes
+
+**Example GenServer Operation:**
+
+```elixir
+# Synchronous image generation via GenServer
+{:ok, image_path} = LivebookNx.Server.run_zimage_generation("a sunset", [width: 1024])
+```
+
+#### Database Integration
+
+- **Ecto Repository**: `LivebookNx.Repo` with CockroachDB adapter
+- **Migrations**: Versioned database schema changes in `priv/repo/migrations/`
+- **Job Persistence**: Oban stores background jobs in database tables
+
+#### Background Job Processing
+
+- **Oban Integration**: Asynchronous task processing with database persistence
+- **Worker Modules**: Separate worker processes in `lib/livebook_nx/*/worker.ex`
+- **Queue Management**: Job prioritization and scheduling
+
+**Example Background Job:**
+
+```elixir
+# Queue image generation job
+{:ok, %Oban.Job{}} = LivebookNx.Server.queue_zimage_generation("a landscape", [width: 1024])
+```
+
+#### Mix Task Development
+
+CLI tasks extend the `Mix.Task` behavior:
+
+```elixir
+defmodule Mix.Tasks.Zimage do
+  use Mix.Task
+
+  @impl Mix.Task
+  def run(args) do
+    # Start application
+    Mix.Task.run("app.start")
+
+    # Parse arguments
+    {opts, prompts, _} = OptionParser.parse(args, switches: [...])
+
+    # Integrate with server
+    LivebookNx.Server.run_zimage_generation(prompt, opts)
+  end
+end
+```
 
 ### Example Script Templates
 
@@ -225,11 +326,16 @@ with tracer.start_as_current_span("operation.name") as span:
 
 ### Elixir
 
-- Use `Mix.install` for dependency management (no `mix.exs`)
+- Use proper Mix project structure for OTP applications (`mix.exs`, `lib/`, `test/`)
 - Follow Elixir naming conventions (snake_case for functions, PascalCase for modules)
 - Use `IO.puts` for user-facing output, `Logger` for structured logging
 - Prefer pattern matching over conditionals where possible
 - Use `~S"""` sigils for raw strings, `~s"""` for interpolated strings
+- Run `mix credo` regularly to maintain code quality:
+  - Avoid deeply nested functions (max depth: 2)
+  - Keep cyclomatic complexity under 9
+  - Maintain consistent line endings (Windows: CRLF)
+  - Recent fixes: Extracted complex validation logic and reduced nesting in server operations
 
 ### Python (Embedded)
 
@@ -314,16 +420,48 @@ Native Elixir ML scripts use:
 
 ## Testing
 
+### OTP Application Testing
+
+The main application uses ExUnit for unit and integration testing:
+
+```bash
+# Run all tests
+mix test
+
+# Run with coverage
+mix test --cover
+
+# Run specific test file
+mix test test/livebook_nx_test.exs
+
+# Run tests and check Credo
+mix test && mix credo
+```
+
 ### Manual Testing
 
 Scripts are tested manually by running with sample inputs:
 
 ```bash
-# Python-based script example
-elixir unirig_generation.exs model.obj
+# Legacy CLI scripts
+elixir elixir/unirig_generation.exs model.obj
+elixir elixir/nx_phi3.exs "Hello world" --max-tokens 20
 
-# Native Elixir ML script example
-elixir nx_phi3.exs "Hello world" --max-tokens 20
+# OTP application via Mix tasks
+mix zimage "a beautiful landscape" --width 1024 --height 1024
+mix crdb.start  # Start database for integration testing
+```
+
+### AI Model Testing
+
+Test AI operations with minimal inputs:
+
+```elixir
+# Test Z-Image generation via GenServer
+{:ok, image_path} = LivebookNx.Server.run_zimage_generation("test", [width: 256, height: 256])
+
+# Test background job queuing
+{:ok, job} = LivebookNx.Server.queue_zimage_generation("test", [width: 256])
 ```
 
 ### Output Verification
@@ -331,6 +469,7 @@ elixir nx_phi3.exs "Hello world" --max-tokens 20
 - Check output directory for generated files
 - Verify file formats and sizes
 - Review logs for errors or warnings
+- Test database persistence (job statuses, migration results)
 
 ## Performance Considerations
 
