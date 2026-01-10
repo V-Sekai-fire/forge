@@ -1,4 +1,4 @@
-defmodule LivebookNx.Security do
+defmodule Forge.Security do
   @moduledoc """
   Security utilities for input validation and sanitization.
   """
