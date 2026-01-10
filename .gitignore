@@ -10,6 +10,12 @@ __pycache__/
 # Pythonx cache
 .pythonx/
 
+# Elixir
+_build/
+deps/
+mix.lock
+*.ez
+
 # Model checkpoints
 checkpoints/
 *.pth
@@ -103,3 +109,4 @@ thirdparty/UniRig/lightning_logs/
 thirdparty/UniRig/erl_crash.dump
 
 outputs/*
+node_modules
