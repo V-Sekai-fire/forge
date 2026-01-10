@@ -56,14 +56,6 @@ defmodule Forge.Qwen3VL do
     end
   end
 
-  defp download_model do
-    # Use shared downloader
-    case HuggingFaceDownloader.download_repo(@model_id, @weights_dir, "Qwen3-VL", false) do
-      {:ok, _} -> :ok
-      {:error, _} -> Logger.warning("Model download had errors, continuing...")
-    end
-  end
-
   defp do_inference(config) do
     # Python environment is initialized automatically via config
 
