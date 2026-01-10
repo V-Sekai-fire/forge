@@ -97,10 +97,11 @@ config/prod.exs
 config/*.local.exs
 config/*.secret.exs
 
+# Certificates (generated - webserver only)
+priv/certs/
+
 # Distillery/Mix releases
 rel/*/releases/*/cookie
 
 # Release archives
 *.tar.gz
-
-.gitignore
