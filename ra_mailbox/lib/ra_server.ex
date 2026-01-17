@@ -96,6 +96,7 @@ defmodule RAMailbox.RAServer do
 
     config = %{
       name: server_id,
+      uid: "mailbox_server_#{server_id}",
       machine: {:module, __MODULE__, %{}},
       data_dir: 'priv/ra'
     }
