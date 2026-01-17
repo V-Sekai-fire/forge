@@ -12,26 +12,13 @@ Distributed AI platform with peer-to-peer networking via Zenoh. Generates images
 
 ## Quick Start
 
-### 1. Install Zenoh Daemon with HTTP Bridge
+### 1. Install Zenoh Daemon
 ```bash
-# Option 1: Compile Zenoh from source (recommended - includes HTTP bridge)
-git clone https://github.com/eclipse-zenoh/zenoh.git
-cd zenoh
-cargo build --release --all-features
-sudo cp target/release/zenohd /usr/local/bin/zenohd-full
+# Install basic Zenoh router
+cargo install zenohd
 
-# Option 2: Cargo install (minimal - no HTTP bridge)
-cargo install zenohd  # Basic networking only
-
-# Option 3: Download pre-built binaries with plugins
-# See: https://zenoh.io/download/ (ensure REST plugin included)
-
-# Verify (choose the version you installed):
-/usr/local/bin/zenohd-full --version  # Full-featured
-zenohd --version                      # Basic cargo install
-
-# Test REST support:
-/usr/local/bin/zenohd-full --help | grep rest
+# Verify installation
+zenohd --version
 ```
 
 ### 2. Launch System
@@ -40,40 +27,33 @@ zenohd --version                      # Basic cargo install
 ```
 
 ### 3. Generate Images
-Forgbe supports both **Simple** (HTTP/JSON) and **Brutal** (Zenoh/FlatBuffers) patterns:
+Forge uses FlatBuffers over Zenoh native protocol for high-performance communication:
 
-**Simple Pattern (HTTP Bridge):**
+**Image Generation:**
 ```bash
-# Universal JSON API via HTTP
-curl -X POST http://localhost:7447/apis/zimage/generate \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "sunset over mountains", "width": 1024}'
-
-# Batch generation
-curl -X POST http://localhost:7447/apis/zimage/batch \
-  -H "Content-Type: application/json" \
-  -d '[{"prompt": "cat"}, {"prompt": "dog"}]'
-```
-
-**Brutal Pattern (Zenoh Native):**
-```bash
-# High-performance FlatBuffers over Zenoh
+# Generate AI images via FlatBuffers/Zenoh
 ./zimage_client "sunset over mountains"
 
 # Advanced options
-./zimage_client "cyberpunk city" --width 1024 --guidance-scale 0.5
+./zimage_client "cyberpunk city" --width 1024 --guidance-scale 0.5 --num-steps 8
 
-# Service monitoring
+# Batch processing
+./zimage_client --batch "cat in meadow" "dog by river" "bird in sky" --width 512
+```
+
+**Service Monitoring:**
+```bash
+# Real-time service dashboard
 ./zimage_client --dashboard
 ```
 
 ### 4. Monitor Services
 ```bash
-# Service dashboard
-./zimage_client --dashboard
-
 # Router status
 systemctl --user status zenohd
+
+# Service logs
+journalctl --user -u zenohd --lines=10
 ```
 
 ## Architecture
@@ -87,6 +67,7 @@ systemctl --user status zenohd
 - **Peer-to-Peer**: Services discover each other automatically
 - **Binary Transport**: FlatBuffers for efficient data exchange
 - **GPU Optimized**: torch.compile for 2x AI speedup on CUDA
+- **Low Latency**: Sub-millisecond local communications
 
 ## Development
 
@@ -99,7 +80,7 @@ cd forge
 # Setup Python AI service
 cd zimage && uv sync
 
-# Setup Elixir tools
+# Setup Elixir CLI tools
 cd ../zimage-client && mix deps.get && mix escript.build
 ```
 
@@ -110,6 +91,21 @@ cd ../zimage-client && mix deps.get && mix escript.build
 
 ### Zenohd Service Setup
 For detailed zenohd systemd user service setup, see **ZENOHD_SERVICE_SETUP.md**
+
+## Protocol
+
+Forge communicates using **FlatBuffers binary serialization** over Zenoh's native protocol:
+
+**Zenoh Keys:**
+- `forge/inference/zimage` - AI generation queries
+- `forge/services/zimage` - Service liveliness
+- `forge/batch/zimage` - Batch processing
+
+**Data Format:**
+- **Requests**: FlatBuffers `InferenceRequest` schema
+- **Responses**: FlatBuffers `InferenceResponse` schema
+- **Transport**: Zenoh query(/get) primitives
+- **Discovery**: Zenoh liveliness tokens
 
 ## Documentation
 

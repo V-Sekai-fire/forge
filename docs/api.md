@@ -10,24 +10,23 @@ Location: `zimage/`
 Technology: Python + Hugging Face Diffusers + Zenoh
 
 **Service Interface:**
-- **Transport**: HTTP/JSON via Zenoh bridge at `http://localhost:7447/apis/zimage/generate`
-- **Data Format**: Standard JSON
-- **Response**: Image paths in output directory with timestamps
+- **Transport**: FlatBuffers over Zenoh native protocol
+- **Zenoh Key**: `forge/inference/zimage`
+- **Data Format**: Binary FlatBuffers serialization
 
 **Local Development:**
 ```python
 # Start service
 cd zimage && uv run python inference_service.py
 
-# Import inference function for testing
-from inference_service import process_inference
-result = process_inference("sunset mountain", 1024, 1024, 42, 4, 0.0, "png")
+# Service auto-registers with Zenoh router
+# Uses flatbuffers for binary protocol communication
 ```
 
 **Zenoh Integration:**
-- **HTTP Bridge**: Accessible via `apis/zimage/**` endpoints
-- **Liveliness Token**: "forge/services/zimage" (auto-announced)
-- **Connection**: Bridges HTTP requests to internal Zenoh network
+- **Liveliness Token**: `forge/services/zimage` (auto-announced)
+- **Query Key**: `forge/inference/zimage`
+- **Protocol**: FlatBuffers for efficient binary serialization
 
 ### zimage-client (Elixir CLI Tools)
 
@@ -69,128 +68,63 @@ cd zenoh-router
 
 ## API Access
 
-The primary access method is via the **Zenoh HTTP Bridge**, which translates between HTTP requests and Zenoh messages. This enables universal access using any HTTP client.
+Forge uses **FlatBuffers over Zenoh native protocol** for high-performance distributed communication and computation.
 
-### HTTP Bridge Endpoints
+### Zenoh Native Protocol
+
+The primary interface uses FlatBuffers binary serialization over Zenoh's peer-to-peer networking:
 
 #### Image Generation
 ```bash
-# Generate image via HTTP POST
-curl -X POST http://localhost:7447/apis/zimage/generate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "sunset over mountains",
-    "width": 1024,
-    "height": 1024,
-    "guidance_scale": 0.5,
-    "num_steps": 4,
-    "output_format": "png"
-  }'
+# Direct FlatBuffers/Zenoh communication
+./zimage_client "sunset over mountains" --width 1024 --height 1024 --guidance-scale 0.5
 ```
 
-**Response:**
-```json
-{
-  "status": "success",
-  "output_path": "/tmp/generated/image_001.png",
-  "metadata": {
-    "model": "z-image-turbo",
-    "inference_time": 2.3,
-    "width": 1024,
-    "height": 1024
-  }
-}
-```
+**CLI Available on all CLI implementations:**
+- ✅ zimage-client (Elixir with Zenoh client)
+- ✅ Custom Zenoh clients (Python, C++, Rust, etc.)
 
-#### Batch Generation
+#### Batch Processing
 ```bash
-curl -X POST http://localhost:7447/apis/zimage/batch \
-  -H "Content-Type: application/json" \
-  -d '[
-    {"prompt": "cat", "width": 512, "height": 512},
-    {"prompt": "dog", "width": 512, "height": 512}
-  ]'
-```
-
-#### Service Status
-```bash
-# Get zimage service status
-curl -X GET http://localhost:7447/apis/zimage/status
-```
-
-**Response Example:**
-```json
-{
-  "service": "zimage",
-  "status": "active",
-  "version": "1.0.0",
-  "uptime": 1234,
-  "active_models": ["z-image-turbo"],
-  "gpu_available": true
-}
-```
-
-### Alternative: Zenoh Native (CLI)
-
-For advanced usage, use the native Zenoh client:
-
-```bash
-# Generate with CLI (connects directly to Zenoh)
-./zimage_client "sunset over mountains" --width 1024
-
-# Service dashboard
-./zimage_client --dashboard
-
-# Batch processing
+# Generate multiple images
 ./zimage_client --batch "cat" "dog" "bird" --width 512
 ```
 
-### Payload Format
-
-All JSON payloads use this structure:
-
-**Request:**
-```json
-{
-  "prompt": "text description (required)",
-  "width": 1024,
-  "height": 1024,
-  "num_steps": 4,
-  "guidance_scale": 0.5,
-  "output_format": "png|jpg|jpeg",
-  "seed": "(optional integer)"
-}
-```
-
-**Response:**
-```json
-{
-  "status": "success|error",
-  "output_path": "/path/to/image (if success)",
-  "error": "error message (if failed)",
-  "metadata": {
-    "model": "model_name",
-    "inference_time": 2.3,
-    "width": 1024,
-    "height": 1024,
-    "gpu_memory_used": 2048
-  }
-}
-```
-
-### Compression
-
-**HTTP compression is recommended and enabled.** Use gzip compression for large payloads:
-
+#### Service Status & Monitoring
 ```bash
-curl -X POST http://localhost:7447/apis/zimage/generate \
-  -H "Content-Type: application/json" \
-  -H "Accept-Encoding: gzip,deflate" \
-  --compressed \
-  -d '{"prompt": "...very long prompt..."}'
+# View real-time service dashboard
+./zimage_client --dashboard
+
+# Get individual AI service status
+./zimage_client --status
 ```
 
-This is particularly beneficial for complex AI prompts and batch operations.
+### FlatBuffers Protocol
+
+Forge uses FlatBuffers binary serialization for efficient data transfer:
+
+**Schema Definitions:** See `zimage/flatbuffers/inference_request.fbs` and `zimage/flatbuffers/inference_response.fbs`
+
+**Request Structure (FlatBuffers):**
+```flatbuffers
+// Binary serialized request containing:
+prompt: string          // Required image description
+width: int32 = 1024     // Image width
+height: int32 = 1024    // Image height
+num_steps: int32 = 4    // Inference steps
+guidance_scale: double = 0.5  // Control strength
+seed: int32 = 0         // Random seed (optional)
+output_format: string = "png"  // Output format
+```
+
+**Response Structure (FlatBuffers):**
+```flatbuffers
+// Binary serialized response containing:
+status: string          // "success" or "error"
+result: string          // Image path or error message
+metadata: vector<string>  // Key-value metadata pairs
+image_data: vector<ubyte>  // Optional embedded image bytes
+```
 
 ## Error Codes
 
@@ -224,12 +158,13 @@ ROUTER_PORT=7447
 
 ### Default Configurations
 ```yaml
-# zenohd.yml
+# zenohd.yml - Basic Zenoh router configuration
 listen:
   - tcp/[::]:7447
-plugins:
-  rest:
-  ws:
+
+# Optional: Add websockets for browser connectivity
+ws:
+  enabled: true
 ```
 
 ## Performance Metrics
@@ -241,10 +176,10 @@ plugins:
 - **Speed**: ~2-5 seconds per image
 
 ### Network Transport
-- **Protocol**: Zenoh HTTP Bridge (REST API)
-- **Serialization**: JSON with optional gzip compression
-- **Compression**: HTTP gzip by default, recommended for AI payloads
-- **Latency**: ~1-5ms local HTTP overhead on Zenoh network
+- **Protocol**: Zenoh native with FlatBuffers
+- **Serialization**: Binary FlatBuffers (zero-copy)
+- **Compression**: Built-in Zenoh optimization
+- **Latency**: Sub-millisecond local, <10ms LAN
 
 ## Testing
 

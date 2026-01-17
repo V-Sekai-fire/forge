@@ -5,8 +5,8 @@ After=network.target
 
 [Service]
 Type=simple
-# Try full-featured zenohd first, fall back to basic
-ExecStart=bash -c "if [ -x /usr/local/bin/zenohd-full ]; then exec /usr/local/bin/zenohd-full --listen tcp/[::]:7447 --rest-http-port 7447; else exec %h/.cargo/bin/zenohd --listen tcp/[::]:7447; fi"
+# Basic Zenoh router for FlatBuffers native protocol
+ExecStart=%h/.cargo/bin/zenohd --listen tcp/[::]:7447
 Restart=on-failure
 RestartSec=5
 
