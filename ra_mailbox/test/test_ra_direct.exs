@@ -9,6 +9,7 @@ require Logger
 
 # Start RA server manually for testing
 IO.puts("\n1. Starting RA server...")
+
 case RAMailbox.RAServer.start_simple("test_mailbox") do
   {:ok, ra_name} ->
     IO.puts("✅ RA server started: #{inspect(ra_name)}")
@@ -38,21 +39,29 @@ case RAMailbox.RAServer.start_simple("test_mailbox") do
 
     # Test COUNT
     IO.puts("\n3. Testing COUNT operations...")
+
     case RAMailbox.RAServer.get_message_count(:test_mailbox, user_id) do
       count when count == 3 ->
         IO.puts("✅ COUNT operation successful: #{count} messages")
+
       count ->
         IO.puts("❌ COUNT failed: expected 3, got #{count}")
     end
 
     # Test PEEK operations (should not remove message)
     IO.puts("\n4. Testing PEEK operations...")
+
     peek_results = [
       RAMailbox.RAServer.peek(:test_mailbox, user_id),
       RAMailbox.RAServer.peek(:test_mailbox, user_id)
     ]
 
-    peek_success = Enum.all?(peek_results, fn {:ok, msg} when is_binary(msg) -> true; _ -> false end)
+    peek_success =
+      Enum.all?(peek_results, fn
+        {:ok, msg} when is_binary(msg) -> true
+        _ -> false
+      end)
+
     if peek_success do
       IO.puts("✅ All PEEK operations successful")
       IO.puts("   Peeked message 1: #{inspect(hd(peek_results))}")
@@ -62,19 +71,22 @@ case RAMailbox.RAServer.start_simple("test_mailbox") do
 
     # Test CONSUME operations (should remove messages)
     IO.puts("\n5. Testing CONSUME operations (exactly-once semantics)...")
+
     consume_results = [
       RAMailbox.RAServer.consume(:test_mailbox, user_id),
       RAMailbox.RAServer.consume(:test_mailbox, user_id),
       RAMailbox.RAServer.consume(:test_mailbox, user_id),
-      RAMailbox.RAServer.consume(:test_mailbox, user_id)  # Should be empty
+      # Should be empty
+      RAMailbox.RAServer.consume(:test_mailbox, user_id)
     ]
 
-    consumed_messages = Enum.map(consume_results, fn result ->
-      case result do
-        {:ok, msg} -> msg
-        {:error, :empty} -> "EMPTY"
-      end
-    end)
+    consumed_messages =
+      Enum.map(consume_results, fn result ->
+        case result do
+          {:ok, msg} -> msg
+          {:error, :empty} -> "EMPTY"
+        end
+      end)
 
     messages_consumed = Enum.count(consumed_messages, fn msg -> msg != "EMPTY" end)
 
@@ -91,6 +103,7 @@ case RAMailbox.RAServer.start_simple("test_mailbox") do
     case RAMailbox.RAServer.consume(:test_mailbox, user_id) do
       {:error, :empty} ->
         IO.puts("✅ EMPTY mailbox test passed")
+
       result ->
         IO.puts("❌ EMPTY mailbox test failed: #{inspect(result)}")
     end
@@ -103,6 +116,7 @@ case RAMailbox.RAServer.start_simple("test_mailbox") do
     case RAMailbox.RAServer.get_message_count(:test_mailbox, user_id) do
       0 ->
         IO.puts("✅ User isolation successful: #{user_id} has 0 messages")
+
       count ->
         IO.puts("❌ User isolation failed: #{user_id} has #{count} messages")
     end
@@ -110,6 +124,7 @@ case RAMailbox.RAServer.start_simple("test_mailbox") do
     case RAMailbox.RAServer.get_message_count(:test_mailbox, other_user) do
       1 ->
         IO.puts("✅ Other user messages preserved: #{other_user} has 1 message")
+
       count ->
         IO.puts("❌ Other user messages lost: #{other_user} has #{count} messages")
     end

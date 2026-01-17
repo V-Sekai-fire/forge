@@ -22,29 +22,27 @@ defmodule RAMailbox.ZenohBridge do
   def init(_opts) do
     Logger.info("Starting Zenoh-DETS Mailbox Bridge")
 
-    case Zenohex.open() do
-      {:ok, session} ->
-        case Zenohex.Session.declare_queryable(session, @zenoh_key_pattern) do
-          {:ok, queryable} ->
-            Logger.info("Zenoh queryable declared for: #{inspect(@zenoh_key_pattern)}")
+    with {:ok, session} <- Zenohex.open(),
+         {:ok, queryable} <- declare_queryable(session) do
+      Logger.info("Zenoh queryable declared for: #{inspect(@zenoh_key_pattern)}")
 
-            # Start bridge loop
-            spawn_link(fn -> bridge_loop(session, queryable) end)
+      # Start bridge loop
+      spawn_link(fn -> bridge_loop(session, queryable) end)
 
-            {:ok, %{
-              session: session,
-              queryable: queryable
-            }}
-
-          {:error, reason} ->
-            Logger.error("Failed to declare Zenoh queryable: #{inspect(reason)}")
-            {:stop, reason}
-        end
-
+      {:ok,
+       %{
+         session: session,
+         queryable: queryable
+       }}
+    else
       {:error, reason} ->
-        Logger.error("Failed to open Zenoh session: #{inspect(reason)}")
+        Logger.error("Failed to initialize Zenoh bridge: #{inspect(reason)}")
         {:stop, reason}
     end
+  end
+
+  defp declare_queryable(session) do
+    Zenohex.Session.declare_queryable(session, @zenoh_key_pattern)
   end
 
   @impl true
@@ -88,42 +86,52 @@ defmodule RAMailbox.ZenohBridge do
 
   # Handle mailbox operations
   def handle_mailbox_operation(user_id, operation, query) do
-    # Extract payload if present
-    payload = case Zenohex.Query.payload(query) do
+    payload = extract_payload(query)
+
+    case build_ra_command(operation, user_id, payload) do
+      {:ok, ra_command} ->
+        execute_and_reply(ra_command, query)
+
+      {:error, reason} ->
+        reply_error(query, reason)
+    end
+  end
+
+  defp extract_payload(query) do
+    case Zenohex.Query.payload(query) do
       {:ok, data} -> Jason.decode!(data)
       _ -> nil
     end
+  end
 
-    # Map operation to RA command
-    ra_command = case operation do
-      "put" when payload != nil ->
-        {:put, user_id, payload}
+  defp build_ra_command("put", user_id, payload) when payload != nil do
+    {:ok, {:put, user_id, payload}}
+  end
 
-      "consume" ->
-        {:consume, user_id}
+  defp build_ra_command("consume", user_id, _payload) do
+    {:ok, {:consume, user_id}}
+  end
 
-      "peek" ->
-        {:peek, user_id}
+  defp build_ra_command("peek", user_id, _payload) do
+    {:ok, {:peek, user_id}}
+  end
 
-      "count" ->
-        # Special operation to get mailbox count
-        {:count, user_id}
+  defp build_ra_command("count", user_id, _payload) do
+    {:ok, {:count, user_id}}
+  end
 
-      _ ->
-        Logger.warn("Unknown operation: #{operation}")
-        nil
-    end
+  defp build_ra_command(operation, _user_id, _payload) do
+    Logger.warn("Unknown operation: #{operation}")
+    {:error, "Unknown or invalid operation"}
+  end
 
-    # Execute DETS command and reply
-    if ra_command do
-      case submit_to_ra(ra_command, nil) do
-        {:ok, result} ->
-          reply_success(query, result)
-        {:error, reason} ->
-          reply_error(query, reason)
-      end
-    else
-      reply_error(query, "Unknown or invalid operation")
+  defp execute_and_reply(ra_command, query) do
+    case submit_to_ra(ra_command, nil) do
+      {:ok, result} ->
+        reply_success(query, result)
+
+      {:error, reason} ->
+        reply_error(query, reason)
     end
   end
 

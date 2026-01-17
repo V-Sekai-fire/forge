@@ -59,30 +59,35 @@ defmodule RAMailboxTest do
 
       # Put multiple messages quickly
       message_count = 10
-      messages = Enum.map(1..message_count, fn i ->
-        %{"id" => i, "data" => "Message #{i}", "timestamp" => System.system_time(:millisecond)}
-      end)
+
+      messages =
+        Enum.map(1..message_count, fn i ->
+          %{"id" => i, "data" => "Message #{i}", "timestamp" => System.system_time(:millisecond)}
+        end)
 
       # Submit all PUT operations asynchronously
-      put_tasks = Enum.map(messages, fn msg ->
-        Task.async(fn ->
-          payload = Jason.encode!(msg)
-          :ra.process_command(:test_mailbox_ra, {:put, user_id, payload})
+      put_tasks =
+        Enum.map(messages, fn msg ->
+          Task.async(fn ->
+            payload = Jason.encode!(msg)
+            :ra.process_command(:test_mailbox_ra, {:put, user_id, payload})
+          end)
         end)
-      end)
 
       # Wait for all puts to complete
       put_results = Enum.map(put_tasks, &Task.await/1)
+
       assert Enum.all?(put_results, fn
-        {:ok, :ok} -> true
-        _ -> false
-      end)
+               {:ok, :ok} -> true
+               _ -> false
+             end)
 
       # Now consume all messages and verify they come in insertion order
-      consumed_messages = Enum.map(1..message_count, fn _ ->
-        {:ok, message} = :ra.process_command(:test_mailbox_ra, {:consume, user_id})
-        Jason.decode!(message)
-      end)
+      consumed_messages =
+        Enum.map(1..message_count, fn _ ->
+          {:ok, message} = :ra.process_command(:test_mailbox_ra, {:consume, user_id})
+          Jason.decode!(message)
+        end)
 
       # Verify all messages consumed and in order (chronological)
       consumed_ids = Enum.map(consumed_messages, & &1["id"])
@@ -130,10 +135,12 @@ defmodule RAMailboxTest do
 
       # Time PUT operations
       put_start = System.monotonic_time(:microsecond)
+
       Enum.each(1..operation_count, fn i ->
         msg = Jason.encode!(%{"i" => i, "data" => "Performance test message #{i}"})
         {:ok, :ok} = :ra.process_command(:test_mailbox_ra, {:put, user_id, msg})
       end)
+
       put_end = System.monotonic_time(:microsecond)
       put_time = put_end - put_start
 
@@ -142,9 +149,11 @@ defmodule RAMailboxTest do
 
       # Time CONSUME operations
       consume_start = System.monotonic_time(:microsecond)
+
       Enum.each(1..operation_count, fn _ ->
         {:ok, _msg} = :ra.process_command(:test_mailbox_ra, {:consume, user_id})
       end)
+
       consume_end = System.monotonic_time(:microsecond)
       consume_time = consume_end - consume_start
 
@@ -152,8 +161,9 @@ defmodule RAMailboxTest do
       IO.puts("CONSUME operation average: #{consume_avg_us} microseconds")
 
       # Basic performance assertions
-      assert put_avg_us < 10000 # Should be under 10ms per operation
-      assert consume_avg_us < 10000
+      # Should be under 10ms per operation
+      assert put_avg_us < 10_000
+      assert consume_avg_us < 10_000
       assert put_avg_us > 0
       assert consume_avg_us > 0
     end

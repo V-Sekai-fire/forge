@@ -108,54 +108,70 @@ defmodule RAMailbox.TransactionManager do
 
   @doc "Put a message in user's mailbox with ACID guarantees"
   def put_message(node_id, user_id, message, timeout \\ @default_timeout) do
-    call_with_transaction(node_id, fn _ctx ->
-      key = mailbox_key(user_id)
-      operations = [{:set, key, %{message: message, timestamp: DateTime.utc_now()}}]
-      {:ok, :message_sent, operations}
-    end, timeout)
+    call_with_transaction(
+      node_id,
+      fn _ctx ->
+        key = mailbox_key(user_id)
+        operations = [{:set, key, %{message: message, timestamp: DateTime.utc_now()}}]
+        {:ok, :message_sent, operations}
+      end,
+      timeout
+    )
   end
 
   @doc "Consume oldest message from user's mailbox (exactly-once semantics)"
   def consume_message(node_id, user_id, timeout \\ @default_timeout) do
-    call_with_transaction(node_id, fn ctx ->
-      key = mailbox_key(user_id)
-      # Read current message first (ACID isolation)
-      ctx.read(key)
+    call_with_transaction(
+      node_id,
+      fn ctx ->
+        key = mailbox_key(user_id)
+        # Read current message first (ACID isolation)
+        ctx.read(key)
 
-      case Map.get(ctx.read_results, key) do
-        nil ->
-          {:error, :empty}
+        case Map.get(ctx.read_results, key) do
+          nil ->
+            {:error, :empty}
 
-        message_data ->
-          # Atomically consume the message
-          operations = [{:delete, key}]
-          {:ok, message_data.message, operations}
-      end
-    end, timeout)
+          message_data ->
+            # Atomically consume the message
+            operations = [{:delete, key}]
+            {:ok, message_data.message, operations}
+        end
+      end,
+      timeout
+    )
   end
 
   @doc "Peek at oldest message without consuming it"
   def peek_message(node_id, user_id, timeout \\ @default_timeout) do
-    call_with_transaction(node_id, fn ctx ->
-      key = mailbox_key(user_id)
-      ctx.read(key)
+    call_with_transaction(
+      node_id,
+      fn ctx ->
+        key = mailbox_key(user_id)
+        ctx.read(key)
 
-      case Map.get(ctx.read_results, key) do
-        nil -> {:error, :empty}
-        message_data -> {:ok, message_data.message}
-      end
-    end, timeout)
+        case Map.get(ctx.read_results, key) do
+          nil -> {:error, :empty}
+          message_data -> {:ok, message_data.message}
+        end
+      end,
+      timeout
+    )
   end
 
   @doc "Get count of messages in user's mailbox"
   def message_count(node_id, user_id, timeout \\ @default_timeout) do
-    call_with_transaction(node_id, fn ctx ->
-      key = mailbox_key(user_id)
-      ctx.read(key)
+    call_with_transaction(
+      node_id,
+      fn ctx ->
+        key = mailbox_key(user_id)
+        ctx.read(key)
 
-      count = if Map.has_key?(ctx.read_results, key), do: 1, else: 0
-      {:ok, count, []}
-    end, timeout)
+        count = if Map.has_key?(ctx.read_results, key), do: 1, else: 0
+        {:ok, count, []}
+      end,
+      timeout
+    )
   end
 
   # =====================================================
@@ -185,6 +201,7 @@ defmodule RAMailbox.TransactionManager do
     Task.start(fn ->
       execute_transaction(fun, node_id, state)
     end)
+
     {:noreply, Map.put(state, :active_transactions, state.active_transactions + 1)}
   end
 
@@ -253,12 +270,12 @@ defmodule RAMailbox.TransactionManager do
       {:ok, {:ok, _read_results}, _leader} ->
         {{:ok, result_value}, state}
 
-              {:error, reason} ->
+      {:error, reason} ->
         {{:error, {:ra_error, reason}}, state}
 
-              other ->
+      other ->
         {{:error, {:unexpected_result, other}}, state}
-            end
+    end
   end
 
   defp process_transaction_result({:error, reason}, _reads, _server_id, state) do
@@ -343,7 +360,9 @@ defmodule RAMailbox.TransactionManager do
         # Create new cluster for this node
         cluster_name = cluster_name_for_node(node_id)
         # Server ID must be {Name, Node} tuple (2 elements)
-        server_name = String.to_atom("tx_server_#{String.replace(node_id, ~r/[^a-zA-Z0-9_]/, "_")}")
+        server_name =
+          String.to_atom("tx_server_#{String.replace(node_id, ~r/[^a-zA-Z0-9_]/, "_")}")
+
         server_id = {server_name, node()}
         machine = {:module, RAMailbox.RAServer, %{}}
 

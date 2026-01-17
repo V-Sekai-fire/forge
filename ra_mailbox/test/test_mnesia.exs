@@ -23,6 +23,7 @@ case RAMailbox.Application.start(:normal, []) do
     case RAMailbox.MnesiaStore.put(user_id, message1) do
       :ok ->
         IO.puts("✅ PUT operation successful")
+
       error ->
         IO.puts("❌ PUT operation failed: #{inspect(error)}")
     end
@@ -31,6 +32,7 @@ case RAMailbox.Application.start(:normal, []) do
     case RAMailbox.MnesiaStore.put(user_id, message2) do
       :ok ->
         IO.puts("✅ Second PUT operation successful")
+
       error ->
         IO.puts("❌ Second PUT operation failed: #{inspect(error)}")
     end
@@ -39,6 +41,7 @@ case RAMailbox.Application.start(:normal, []) do
     case RAMailbox.MnesiaStore.get_message_count(user_id) do
       2 ->
         IO.puts("✅ COUNT operation successful: 2 messages")
+
       count ->
         IO.puts("❌ COUNT operation failed: expected 2, got #{inspect(count)}")
     end
@@ -47,6 +50,7 @@ case RAMailbox.Application.start(:normal, []) do
     case RAMailbox.MnesiaStore.peek(user_id) do
       {:ok, content} ->
         IO.puts("✅ PEEK operation successful: #{content}")
+
       error ->
         IO.puts("❌ PEEK operation failed: #{inspect(error)}")
     end
@@ -55,6 +59,7 @@ case RAMailbox.Application.start(:normal, []) do
     case RAMailbox.MnesiaStore.consume(user_id) do
       {:ok, content} ->
         IO.puts("✅ CONSUME operation successful: #{content}")
+
       error ->
         IO.puts("❌ CONSUME operation failed: #{inspect(error)}")
     end
@@ -63,6 +68,7 @@ case RAMailbox.Application.start(:normal, []) do
     case RAMailbox.MnesiaStore.get_message_count(user_id) do
       1 ->
         IO.puts("✅ COUNT after consume successful: 1 message remaining")
+
       count ->
         IO.puts("❌ COUNT after consume failed: expected 1, got #{inspect(count)}")
     end
@@ -71,6 +77,7 @@ case RAMailbox.Application.start(:normal, []) do
     case RAMailbox.MnesiaStore.consume(user_id) do
       {:ok, content} ->
         IO.puts("✅ Second CONSUME operation successful: #{content}")
+
       error ->
         IO.puts("❌ Second CONSUME operation failed: #{inspect(error)}")
     end
@@ -79,6 +86,7 @@ case RAMailbox.Application.start(:normal, []) do
     case RAMailbox.MnesiaStore.consume(user_id) do
       {:error, :empty} ->
         IO.puts("✅ EMPTY mailbox test successful")
+
       result ->
         IO.puts("❌ EMPTY mailbox test failed: expected :empty, got #{inspect(result)}")
     end
@@ -90,6 +98,7 @@ case RAMailbox.Application.start(:normal, []) do
     case RAMailbox.MnesiaStore.process_command({:put, user_id <> "_process", process_msg}) do
       {:ok, :ok} ->
         IO.puts("✅ process_command PUT successful")
+
       result ->
         IO.puts("❌ process_command PUT failed: #{inspect(result)}")
     end
@@ -97,6 +106,7 @@ case RAMailbox.Application.start(:normal, []) do
     case RAMailbox.MnesiaStore.process_command({:consume, user_id <> "_process"}) do
       {:ok, ^process_msg} ->
         IO.puts("✅ process_command CONSUME successful")
+
       result ->
         IO.puts("❌ process_command CONSUME failed: #{inspect(result)}")
     end

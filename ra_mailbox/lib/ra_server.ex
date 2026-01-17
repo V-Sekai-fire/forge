@@ -108,13 +108,17 @@ defmodule RAMailbox.RAServer do
     case command(ra_name, {:transaction, [], [{:get, mailbox_key}]}) do
       {:ok, results} ->
         case Map.get(results, mailbox_key) do
-          nil -> {:error, :empty}
+          nil ->
+            {:error, :empty}
+
           message ->
             # Remove the message
             command(ra_name, {:transaction, [{:delete, mailbox_key}], []})
             {:ok, message}
         end
-      _ -> {:error, :query_failed}
+
+      _ ->
+        {:error, :query_failed}
     end
   end
 
@@ -128,7 +132,9 @@ defmodule RAMailbox.RAServer do
           nil -> {:error, :empty}
           message -> {:ok, message}
         end
-      _ -> {:error, :query_failed}
+
+      _ ->
+        {:error, :query_failed}
     end
   end
 
@@ -141,7 +147,9 @@ defmodule RAMailbox.RAServer do
     case command(ra_name, {:transaction, [], [{:get, mailbox_key}]}) do
       {:ok, results} ->
         if Map.has_key?(results, mailbox_key), do: 1, else: 0
-      _ -> 0
+
+      _ ->
+        0
     end
   end
 
@@ -165,10 +173,12 @@ defmodule RAMailbox.RAServer do
         require Logger
         Logger.info("RA mailbox server #{server_id} started successfully")
         {:ok, server_id_tuple}
+
       {:ok, _} ->
         require Logger
         Logger.info("RA mailbox server #{server_id} started successfully")
         {:ok, server_id_tuple}
+
       error ->
         require Logger
         Logger.error("Failed to start RA server: #{inspect(error)}")

@@ -3,11 +3,11 @@ defmodule ZimageClient.Dashboard do
   Service Dashboard for monitoring active Zenoh liveliness tokens in the Forge fabric.
   """
 
-  def start() do
+  def start do
     run_dashboard()
   end
 
-  defp run_dashboard() do
+  defp run_dashboard do
     IO.puts("Forge Service Dashboard")
     IO.puts("========================")
     IO.puts("Active AI Services:")
@@ -17,7 +17,8 @@ defmodule ZimageClient.Dashboard do
     {:ok, session} = Zenohex.open()
 
     # Subscribe to liveliness queries under "forge/services/**"
-    liveliness_subscriber = Zenohex.Session.declare_subscriber(session, "forge/services/**", liveliness: true)
+    liveliness_subscriber =
+      Zenohex.Session.declare_subscriber(session, "forge/services/**", liveliness: true)
 
     # Listen for changes
     loop(liveliness_subscriber)
@@ -28,6 +29,7 @@ defmodule ZimageClient.Dashboard do
       case sample.kind do
         :put ->
           IO.puts("[+] #{sample.key_expr}")
+
         :delete ->
           IO.puts("[-] #{sample.key_expr}")
       end

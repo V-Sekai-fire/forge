@@ -12,7 +12,8 @@ defmodule RAMailbox.MnesiaStore do
   require Logger
 
   @table_name :mailbox_messages
-  @table_type :set  # For simple key-value operations
+  # For simple key-value operations
+  @table_type :set
 
   # We'll use tuples for Mnesia records: {user_id, message_id, content, inserted_at}
 
@@ -124,68 +125,83 @@ defmodule RAMailbox.MnesiaStore do
 
   defp mnesia_consume(user_id) do
     :mnesia.transaction(fn ->
-      # Use select with guard to find user's messages, then pick first (oldest)
-      pattern = {{@table_name, {user_id, :'$1'}, {:_, :_}}, [], [:'$$']}
-      guards = []
-
-      case :mnesia.select(@table_name, [{pattern, guards, [:'$_']}]) do
-        [] ->
-          :mnesia.abort(:empty)
-
-        results when is_list(results) ->
-          # Find message with lowest message_id (FIFO order)
-          [oldest_record] = Enum.min_by(results, fn {key, _} ->
-            {_, message_id} = key
-            message_id
-          end)
-
-          # Delete the oldest record
-          :mnesia.delete_object(oldest_record)
-          {_, value} = oldest_record
-          {content, _timestamp} = value
-          {:ok, content}
-      end
+      consume_oldest_message(user_id)
     end)
   rescue
-    :empty -> {:error, :empty}
+    :empty ->
+      {:error, :empty}
+
     error ->
       Logger.error("Mnesia consume failed: #{inspect(error)}")
       {:error, :consume_failed}
   end
 
+  defp consume_oldest_message(user_id) do
+    pattern = {{@table_name, {user_id, :"$1"}, {:_, :_}}, [], [:"$_"]}
+    guards = []
+
+    case :mnesia.select(@table_name, [{pattern, guards, [:"$$"]}]) do
+      [] ->
+        :mnesia.abort(:empty)
+
+      results when is_list(results) ->
+        oldest_record = find_oldest_record(results)
+        delete_and_return_content(oldest_record)
+    end
+  end
+
+  defp find_oldest_record(results) do
+    Enum.min_by(results, fn {key, _} ->
+      {_, message_id} = key
+      message_id
+    end)
+  end
+
+  defp delete_and_return_content(oldest_record) do
+    :mnesia.delete_object(oldest_record)
+    {_, value} = oldest_record
+    {content, _timestamp} = value
+    {:ok, content}
+  end
+
   defp mnesia_peek(user_id) do
     :mnesia.transaction(fn ->
-      # Same as consume but don't delete
-      pattern = {{@table_name, {user_id, :'$1'}, {:_, :_}}, [], [:'$_']}
-      guards = []
-
-      case :mnesia.select(@table_name, [{pattern, guards, [:'$_']}]) do
-        [] ->
-          :mnesia.abort(:empty)
-
-        results when is_list(results) ->
-          [oldest_record] = Enum.min_by(results, fn {key, _} ->
-            {_, message_id} = key
-            message_id
-          end)
-
-          {_, value} = oldest_record
-          {content, _timestamp} = value
-          {:ok, content}
-      end
+      peek_oldest_message(user_id)
     end)
   rescue
-    :empty -> {:error, :empty}
+    :empty ->
+      {:error, :empty}
+
     error ->
       Logger.error("Mnesia peek failed: #{inspect(error)}")
       {:error, :peek_failed}
   end
 
+  defp peek_oldest_message(user_id) do
+    pattern = {{@table_name, {user_id, :"$1"}, {:_, :_}}, [], [:"$_"]}
+    guards = []
+
+    case :mnesia.select(@table_name, [{pattern, guards, [:"$_"]}]) do
+      [] ->
+        :mnesia.abort(:empty)
+
+      results when is_list(results) ->
+        oldest_record = find_oldest_record(results)
+        extract_content(oldest_record)
+    end
+  end
+
+  defp extract_content(oldest_record) do
+    {_, value} = oldest_record
+    {content, _timestamp} = value
+    {:ok, content}
+  end
+
   defp mnesia_count(user_id) do
     # Count using select with guard
-    pattern = {{@table_name, {user_id, :'$1'}, {:_, :_}}, [], [:'$_']}
+    pattern = {{@table_name, {user_id, :"$1"}, {:_, :_}}, [], [:"$_"]}
     guards = []
-    {:ok, :mnesia.select(@table_name, [{pattern, guards, [:'$$']}]) |> length}
+    {:ok, :mnesia.select(@table_name, [{pattern, guards, [:"$$"]}]) |> length}
   rescue
     error ->
       Logger.error("Mnesia count failed: #{inspect(error)}")
@@ -213,7 +229,8 @@ defmodule RAMailbox.MnesiaStore do
   defp init_mnesia_schema do
     # Create schema if it doesn't exist
     case :mnesia.create_schema([node()]) do
-      {:error, {_, {:already_exists, _}}} -> :ok  # Schema already exists
+      # Schema already exists
+      {:error, {_, {:already_exists, _}}} -> :ok
       :ok -> Logger.info("Created Mnesia schema")
       {:error, reason} -> {:error, {:schema_creation_failed, reason}}
     end
@@ -229,16 +246,19 @@ defmodule RAMailbox.MnesiaStore do
     # We'll use compound keys with tuple records
     # No additional attributes needed, just use tuple format
     table_options = [
-      disc_copies: [node()]  # Durable disk copies
+      # Durable disk copies
+      disc_copies: [node()]
     ]
 
     case :mnesia.create_table(@table_name, table_options) do
       {:atomic, :ok} ->
         Logger.info("Created Mnesia mailbox table")
         wait_for_table()
+
       {:aborted, {:already_exists, @table_name}} ->
         Logger.info("Mailbox table already exists")
         wait_for_table()
+
       {:aborted, reason} ->
         {:error, {:table_creation_failed, reason}}
     end
@@ -250,8 +270,10 @@ defmodule RAMailbox.MnesiaStore do
       :ok ->
         Logger.info("Mnesia mailbox store ready")
         :ok
+
       {:timeout, _} ->
         {:error, :table_timeout}
+
       {:error, reason} ->
         {:error, {:table_wait_failed, reason}}
     end

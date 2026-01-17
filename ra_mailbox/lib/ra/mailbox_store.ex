@@ -75,12 +75,15 @@ defmodule RAMailbox.DETS.MailboxStore do
     new_queue = [mailbox_message | current_queue]
 
     # Store back to DETS
-    result = case :dets.insert(@table_name, {user_id, new_queue}) do
-      :ok -> :ok
-      error ->
-        Logger.error("DETS insert failed: #{inspect(error)}")
-        error
-    end
+    result =
+      case :dets.insert(@table_name, {user_id, new_queue}) do
+        :ok ->
+          :ok
+
+        error ->
+          Logger.error("DETS insert failed: #{inspect(error)}")
+          error
+      end
 
     {:reply, result, state}
   end
@@ -89,7 +92,8 @@ defmodule RAMailbox.DETS.MailboxStore do
   def handle_call({:consume, user_id}, _from, state) do
     current_queue = get_user_queue(user_id)
 
-    case Enum.reverse(current_queue) do  # Reverse to consume oldest first
+    # Reverse to consume oldest first
+    case Enum.reverse(current_queue) do
       [] ->
         {:reply, {:error, :empty}, state}
 
@@ -113,7 +117,8 @@ defmodule RAMailbox.DETS.MailboxStore do
   def handle_call({:peek, user_id}, _from, state) do
     current_queue = get_user_queue(user_id)
 
-    case Enum.reverse(current_queue) do  # Peek oldest first
+    # Peek oldest first
+    case Enum.reverse(current_queue) do
       [] -> {:reply, {:error, :empty}, state}
       [oldest_message | _] -> {:reply, {:ok, oldest_message}, state}
     end
@@ -127,7 +132,7 @@ defmodule RAMailbox.DETS.MailboxStore do
 
   # Helper functions
   defp open_dets_table do
-    :dets.open_file(@table_name, [file: @table_file, type: :set])
+    :dets.open_file(@table_name, file: @table_file, type: :set)
   end
 
   defp get_user_queue(user_id) do

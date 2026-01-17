@@ -9,7 +9,8 @@ defmodule RAMailboxPropertyTest do
   use PropCheck
   use ExUnit.Case
 
-  @moduletag timeout: 600_000  # 10 minutes for property tests
+  # 10 minutes for property tests
+  @moduletag timeout: 600_000
 
   require Logger
 
@@ -21,9 +22,11 @@ defmodule RAMailboxPropertyTest do
   def message() do
     frequency([
       {4, non_empty(utf8())},
-      {2, list(range(1, 10)) |> let ms <- ms do
-        "generated_#{inspect(ms)}"
-      end},
+      {2,
+       list(range(1, 10))
+       |> let ms <- ms do
+         "generated_#{inspect(ms)}"
+       end},
       {1, unicode_binary(length: 10)}
     ])
   end
@@ -65,16 +68,19 @@ defmodule RAMailboxPropertyTest do
       cleanup_mailbox(user)
 
       # Put all messages into mailbox
-      put_results = Enum.map(messages, fn msg ->
-        RAMailbox.RAClusterSupervisor.put(user, msg)
-      end)
+      put_results =
+        Enum.map(messages, fn msg ->
+          RAMailbox.RAClusterSupervisor.put(user, msg)
+        end)
 
       # All puts should succeed
       assert_all_puts_succeeded(put_results)
 
       # Verify correct message count
       final_count = RAMailbox.RAClusterSupervisor.get_message_count(user)
-      assert final_count == length(messages), "Expected #{length(messages)} messages, got #{final_count}"
+
+      assert final_count == length(messages),
+             "Expected #{length(messages)} messages, got #{final_count}"
 
       # Consume all messages and verify exactly-once semantics
       consumed = consume_all_messages(user)
@@ -107,9 +113,11 @@ defmodule RAMailboxPropertyTest do
       cleanup_mailbox(user)
 
       # Put messages in specific order
-      put_results = Enum.map(messages, fn msg ->
-        RAMailbox.RAClusterSupervisor.put(user, msg)
-      end)
+      put_results =
+        Enum.map(messages, fn msg ->
+          RAMailbox.RAClusterSupervisor.put(user, msg)
+        end)
+
       assert_all_puts_succeeded(put_results)
 
       # Consume in FIFO order
@@ -134,7 +142,7 @@ defmodule RAMailboxPropertyTest do
   property "user_mailbox_isolation", [:verbose] do
     forall {user1, user2, msg1, msg2} <- {user(), user(), message(), message()} do
       # Ensure different users
-      assume user1 != user2
+      assume(user1 != user2)
 
       # Setup - clean both mailboxes
       cleanup_mailbox(user1)
@@ -198,9 +206,10 @@ defmodule RAMailboxPropertyTest do
       cleanup_mailbox(user)
 
       # Put one message multiple times
-      put_results = Enum.map(1..num_ops, fn _ ->
-        RAMailbox.RAClusterSupervisor.put(user, message)
-      end)
+      put_results =
+        Enum.map(1..num_ops, fn _ ->
+          RAMailbox.RAClusterSupervisor.put(user, message)
+        end)
 
       # All puts should succeed
       assert_all_puts_succeeded(put_results)
@@ -210,10 +219,11 @@ defmodule RAMailboxPropertyTest do
       assert count == num_ops, "Expected #{num_ops} messages, got #{count}"
 
       # Consume num_ops messages (all should be our message)
-      consumed = Enum.map(1..num_ops, fn _ ->
-        {:ok, msg} = RAMailbox.RAClusterSupervisor.consume(user)
-        msg
-      end)
+      consumed =
+        Enum.map(1..num_ops, fn _ ->
+          {:ok, msg} = RAMailbox.RAClusterSupervisor.consume(user)
+          msg
+        end)
 
       # All consumed messages should match what we put
       assert Enum.all?(consumed, &(&1 == message))
@@ -270,7 +280,10 @@ defmodule RAMailboxPropertyTest do
     # When RA server startup is fixed, remove this test and uncomment
     # the property tests above
 
-    Logger.info("RA server currently has startup issues - property tests queued for implementation")
+    Logger.info(
+      "RA server currently has startup issues - property tests queued for implementation"
+    )
+
     assert true
   end
 end

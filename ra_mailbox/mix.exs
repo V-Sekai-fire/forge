@@ -27,7 +27,8 @@ defmodule RAMailbox.MixProject do
       {:zenohex, "~> 0.7.2"},
       {:ra, "~> 2.7.0"},
       {:jason, "~> 1.4"},
-      {:propcheck, "~> 1.4.0", only: [:test]}
+      {:propcheck, "~> 1.4.0", only: [:test]},
+      {:credo, "~> 1.7", only: [:dev], runtime: false}
     ]
   end
 end

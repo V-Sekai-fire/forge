@@ -29,7 +29,8 @@ defmodule ForgeClient.MixProject do
     [
       {:zenohex, "~> 0.7.2"},
       {:jason, "~> 1.4.4"},
-      {:flatbuffer, "~> 0.3.1"}
+      {:flatbuffer, "~> 0.3.1"},
+      {:credo, "~> 1.7", only: [:dev], runtime: false}
     ]
   end
 end

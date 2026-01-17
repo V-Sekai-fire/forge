@@ -4,46 +4,71 @@ defmodule ZimageClient.CLI do
   """
 
   def main(args) do
-    {opts, args, _} = OptionParser.parse(args,
-      switches: [
-        width: :integer,
-        height: :integer,
-        seed: :integer,
-        num_steps: :integer,
-        guidance_scale: :float,
-        output_format: :string,
-        batch: :boolean,
-        dashboard: :boolean,
-        router: :boolean,
-        help: :boolean
-      ],
-      aliases: [
-        w: :width,
-        h: :height,
-        s: :seed,
-        b: :batch,
-        d: :dashboard,
-        r: :router,
-        help: :boolean
-      ]
-    )
+    {opts, args} = parse_options(args)
 
-    if Keyword.get(opts, :help, false) do
-      show_help()
-      System.halt(0)
+    cond do
+      opts[:help] -> show_help_and_exit()
+      opts[:dashboard] -> start_dashboard_and_exit()
+      opts[:router] -> start_router_and_exit()
+      true -> run_generation_mode(opts, args)
     end
+  end
 
-    if Keyword.get(opts, :dashboard, false) do
-      ZimageClient.Dashboard.start()
-      System.halt(0)
+  defp parse_options(args) do
+    {opts, args, _} =
+      OptionParser.parse(args,
+        switches: [
+          width: :integer,
+          height: :integer,
+          seed: :integer,
+          num_steps: :integer,
+          guidance_scale: :float,
+          output_format: :string,
+          batch: :boolean,
+          dashboard: :boolean,
+          router: :boolean,
+          help: :boolean
+        ],
+        aliases: [
+          w: :width,
+          h: :height,
+          s: :seed,
+          b: :batch,
+          d: :dashboard,
+          r: :router,
+          help: :boolean
+        ]
+      )
+
+    {opts, args}
+  end
+
+  defp show_help_and_exit do
+    show_help()
+    System.halt(0)
+  end
+
+  defp start_dashboard_and_exit do
+    ZimageClient.Dashboard.start()
+    System.halt(0)
+  end
+
+  defp start_router_and_exit do
+    start_router()
+    System.halt(0)
+  end
+
+  defp run_generation_mode(opts, args) do
+    check_service_availability()
+
+    if opts[:batch] do
+      run_batch_mode(args, opts)
+    else
+      run_single_mode(args, opts)
     end
+  end
 
-    if Keyword.get(opts, :router, false) do
-      start_router()
-      System.halt(0)
-    end
-
-    # Check if service is available
+  defp check_service_availability do
     case ZimageClient.Client.ping() do
       :ok ->
         IO.puts("✓ Zimage service is available")
@@ -52,52 +77,58 @@ defmodule ZimageClient.CLI do
         IO.puts("✗ Zimage service not available: #{reason}")
         System.halt(1)
     end
+  end
 
-    if Keyword.get(opts, :batch, false) do
-      # Batch mode - all args are prompts
-      prompts = args
-      if prompts == [] do
-        IO.puts("Error: At least one prompt required for batch mode")
+  defp run_batch_mode(args, opts) do
+    prompts = args
+
+    if prompts == [] do
+      IO.puts("Error: At least one prompt required for batch mode")
+      System.halt(1)
+    end
+
+    IO.puts("Requesting batch generation of #{length(prompts)} images...")
+
+    case ZimageClient.Client.generate_batch(prompts, opts) do
+      {:ok, results} ->
+        display_batch_results(results, prompts)
+
+      {:error, reason} ->
+        IO.puts("Batch request failed: #{reason}")
         System.halt(1)
-      end
+    end
+  end
 
-      IO.puts("Requesting batch generation of #{length(prompts)} images...")
+  defp display_batch_results(results, prompts) do
+    success_count = Enum.count(results, fn {status, _, _} -> status == :ok end)
+    IO.puts("\n=== Results: #{success_count}/#{length(prompts)} successful ===")
 
-      case ZimageClient.Client.generate_batch(prompts, opts) do
-        {:ok, results} ->
-          success_count = Enum.count(results, fn {status, _, _} -> status == :ok end)
-          IO.puts("\n=== Results: #{success_count}/#{length(prompts)} successful ===")
+    Enum.each(results, fn
+      {:ok, prompt, path} ->
+        IO.puts("✓ '#{prompt}' -> #{path}")
 
-          Enum.each(results, fn
-            {:ok, prompt, path} ->
-              IO.puts("✓ '#{prompt}' -> #{path}")
-            {:error, prompt, reason} ->
-              IO.puts("✗ '#{prompt}' -> #{reason}")
-          end)
+      {:error, prompt, reason} ->
+        IO.puts("✗ '#{prompt}' -> #{reason}")
+    end)
+  end
 
-        {:error, reason} ->
-          IO.puts("Batch request failed: #{reason}")
-          System.halt(1)
-      end
+  defp run_single_mode(args, opts) do
+    prompt = Enum.join(args, " ")
 
-    else
-      # Single mode
-      prompt = Enum.join(args, " ")
-      if prompt == "" do
-        IO.puts("Error: Prompt required")
+    if prompt == "" do
+      IO.puts("Error: Prompt required")
+      System.halt(1)
+    end
+
+    IO.puts("Requesting image generation for: #{prompt}")
+
+    case ZimageClient.Client.generate(prompt, opts) do
+      {:ok, path} ->
+        IO.puts("✓ Image generated: #{path}")
+
+      {:error, reason} ->
+        IO.puts("✗ Generation failed: #{reason}")
         System.halt(1)
-      end
-
-      IO.puts("Requesting image generation for: #{prompt}")
-
-      case ZimageClient.Client.generate(prompt, opts) do
-        {:ok, path} ->
-          IO.puts("✓ Image generated: #{path}")
-
-        {:error, reason} ->
-          IO.puts("✗ Generation failed: #{reason}")
-          System.halt(1)
-      end
     end
   end
 
@@ -105,35 +136,51 @@ defmodule ZimageClient.CLI do
     IO.puts("Starting Zenoh router (zenohd)...")
 
     # Check if zenohd is available
-    with {0, _} <- System.cmd("which", ["zenohd"]),
-         IO.puts("✓ Found zenohd binary") do
+    case check_zenohd_available() do
+      :ok ->
+        IO.puts("✓ Found zenohd binary")
+        start_zenohd_process()
 
-      IO.puts("Starting zenohd on localhost:7447...")
-
-      # Start zenohd as a subprocess
-      # Note: This will run in the foreground, blocking this Elixir process
-      # User can Ctrl+C to stop it
-      case System.cmd("zenohd", [], into: IO.stream(:stdio, :write)) do
-        {output, 0} ->
-          IO.puts("Zenoh router stopped gracefully")
-        {error_output, code} ->
-          IO.puts("Zenoh router exited with code #{code}: #{error_output}")
-          System.halt(1)
-      end
-    else
-      {_code, _} ->
-        IO.puts("""
-        ✗ zenohd not found in PATH.
-
-        Install zenohd to provide the Zenoh router:
-        1. Install Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-        2. Install Zenoh: cargo install zenohd
-        3. Or see: https://zenoh.io/download/
-
-        Zenoh router is required for P2P communication between clients and services.
-        """)
+      :not_found ->
+        show_zenohd_install_instructions()
         System.halt(1)
     end
+  end
+
+  defp check_zenohd_available do
+    case System.cmd("which", ["zenohd"]) do
+      {_, 0} -> :ok
+      _ -> :not_found
+    end
+  end
+
+  defp start_zenohd_process do
+    IO.puts("Starting zenohd on localhost:7447...")
+
+    # Start zenohd as a subprocess
+    # Note: This will run in the foreground, blocking this Elixir process
+    # User can Ctrl+C to stop it
+    case System.cmd("zenohd", [], into: IO.stream(:stdio, :write)) do
+      {_, 0} ->
+        IO.puts("Zenoh router stopped gracefully")
+
+      {error_output, code} ->
+        IO.puts("Zenoh router exited with code #{code}: #{error_output}")
+        System.halt(1)
+    end
+  end
+
+  defp show_zenohd_install_instructions do
+    IO.puts("""
+    ✗ zenohd not found in PATH.
+
+    Install zenohd to provide the Zenoh router:
+    1. Install Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    2. Install Zenoh: cargo install zenohd
+    3. Or see: https://zenoh.io/download/
+
+    Zenoh router is required for P2P communication between clients and services.
+    """)
   end
 
   defp show_help do

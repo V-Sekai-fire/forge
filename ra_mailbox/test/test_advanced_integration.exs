@@ -23,6 +23,7 @@ put_result = RAMailbox.TransactionManager.put_message(node1, user1, test_msg)
 case put_result do
   {:ok, :message_sent} ->
     IO.puts("✅ PUT transaction successful on #{node1}")
+
   error ->
     IO.puts("❌ PUT transaction failed: #{inspect(error)}")
     exit(1)
@@ -32,6 +33,7 @@ end
 case RAMailbox.TransactionManager.peek_message(node1, user1) do
   {:ok, ^test_msg} ->
     IO.puts("✅ PEEK transaction successful (ACID read isolation)")
+
   error ->
     IO.puts("❌ PEEK transaction failed: #{inspect(error)}")
     exit(1)
@@ -41,6 +43,7 @@ end
 case RAMailbox.TransactionManager.message_count(node1, user1) do
   {:ok, 1} ->
     IO.puts("✅ MESSAGE_COUNT transaction successful")
+
   error ->
     IO.puts("❌ MESSAGE_COUNT failed: #{inspect(error)}")
     exit(1)
@@ -50,6 +53,7 @@ end
 case RAMailbox.TransactionManager.message_count(node2, user1) do
   {:ok, 0} ->
     IO.puts("✅ NODE ISOLATION working - different nodes are isolated")
+
   error ->
     IO.puts("❌ NODE ISOLATION failed: #{inspect(error)}")
     exit(1)
@@ -59,6 +63,7 @@ end
 case RAMailbox.TransactionManager.consume_message(node1, user1) do
   {:ok, ^test_msg} ->
     IO.puts("✅ CONSUME transaction successful (exactly-once semantics)")
+
   error ->
     IO.puts("❌ CONSUME transaction failed: #{inspect(error)}")
     exit(1)
@@ -68,6 +73,7 @@ end
 case RAMailbox.TransactionManager.peek_message(node1, user1) do
   {:error, :empty} ->
     IO.puts("✅ MAILBOX EMPTY after consumption")
+
   result ->
     IO.puts("❌ MAILBOX should be empty: #{inspect(result)}")
     exit(1)
@@ -75,6 +81,7 @@ end
 
 # Test cross-node operations
 other_msg = "Message from other node"
+
 case RAMailbox.TransactionManager.put_message(node2, user2, other_msg) do
   {:ok, :message_sent} ->
     IO.puts("✅ CROSS-NODE operation successful")
@@ -83,6 +90,7 @@ case RAMailbox.TransactionManager.put_message(node2, user2, other_msg) do
     case RAMailbox.TransactionManager.consume_message(node2, user2) do
       {:ok, ^other_msg} ->
         IO.puts("✅ CROSS-NODE consumption successful")
+
       error ->
         IO.puts("❌ CROSS-NODE consumption failed: #{inspect(error)}")
     end
@@ -95,23 +103,30 @@ end
 IO.puts("\n2. Testing transaction coordination...")
 
 # Multi-operation transaction
-coord_result = RAMailbox.TransactionManager.call_with_transaction(node1, fn ctx ->
-  # Read current state
-  ctx.read("shared_counter")
+coord_result =
+  RAMailbox.TransactionManager.call_with_transaction(
+    node1,
+    fn ctx ->
+      # Read current state
+      ctx.read("shared_counter")
 
-  # Simulate multiple operations
-  counter = Map.get(ctx.read_results, "shared_counter", 0)
-  operations = [
-    {:set, "shared_counter", counter + 1},
-    {:set, "coordination_test", "success"}
-  ]
+      # Simulate multiple operations
+      counter = Map.get(ctx.read_results, "shared_counter", 0)
 
-  {:ok, :coordinated, operations}
-end, 10_000)
+      operations = [
+        {:set, "shared_counter", counter + 1},
+        {:set, "coordination_test", "success"}
+      ]
+
+      {:ok, :coordinated, operations}
+    end,
+    10_000
+  )
 
 case coord_result do
   {:ok, :coordinated} ->
     IO.puts("✅ TRANSACTION COORDINATION successful (multi-operation atomicity)")
+
   error ->
     IO.puts("❌ TRANSACTION COORDINATION failed: #{inspect(error)}")
 end
@@ -119,17 +134,19 @@ end
 # Test transaction rollbacks (error cases)
 IO.puts("\n3. Testing transaction error handling...")
 
-error_coord = RAMailbox.TransactionManager.call_with_transaction(node1, fn ctx ->
-  # Simulate error in coordination
-  ctx.read("error_test")
+error_coord =
+  RAMailbox.TransactionManager.call_with_transaction(node1, fn ctx ->
+    # Simulate error in coordination
+    ctx.read("error_test")
 
-  # Intentionally fail transaction
-  {:error, "transaction_failed"}
-end)
+    # Intentionally fail transaction
+    {:error, "transaction_failed"}
+  end)
 
 case error_coord do
   {:error, "transaction_failed"} ->
     IO.puts("✅ ERROR HANDLING successful (transaction rolled back)")
+
   result ->
     IO.puts("❌ ERROR HANDLING failed: #{inspect(result)}")
 end
@@ -147,15 +164,17 @@ end)
 # Wait a bit for async processing
 Process.sleep(1000)
 
-async_check = RAMailbox.TransactionManager.call_with_transaction(node2, fn ctx ->
-  ctx.read("async_test")
-  result = Map.get(ctx.read_results, "async_test")
-  {:ok, result, []}
-end)
+async_check =
+  RAMailbox.TransactionManager.call_with_transaction(node2, fn ctx ->
+    ctx.read("async_test")
+    result = Map.get(ctx.read_results, "async_test")
+    {:ok, result, []}
+  end)
 
 case async_check do
   {:ok, "async_success"} ->
     IO.puts("✅ ASYNC TRANSACTION successful")
+
   result ->
     IO.puts("❌ ASYNC TRANSACTION failed: #{inspect(result)}")
 end
