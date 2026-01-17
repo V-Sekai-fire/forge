@@ -9,19 +9,40 @@ echo "==================================="
 echo ""
 
 echo "Checking Zenoh router..."
-if ! command -v zenohd &> /dev/null; then
-    echo "❌ zenohd not found!"
+ZENOH_FOUND=false
+
+# Check for full-featured zenohd (with REST bridge)
+if [ -x /usr/local/bin/zenohd-full ]; then
+    echo "✅ Full-featured zenohd found (with HTTP REST bridge)"
+    echo "   Supports both curl/HTTP and Zenoh native protocols"
+    ZENOH_FOUND=true
+    ZENOH_MODE="full"
+# Check for basic cargo zenohd
+elif command -v zenohd &> /dev/null; then
+    echo "✅ Basic zenohd found (cargo installed)"
+    echo "   Supports Zenoh native protocol only"
+    echo "   HTTP REST bridge requires full build from source"
+    ZENOH_FOUND=true
+    ZENOH_MODE="basic"
+else
+    echo "❌ Zenohd not found!"
     echo ""
-    echo "📦 INSTALL ZENOHD FIRST:"
-    echo "  • REQUIRED: cargo install zenohd"
-    echo "  • zenohd will be installed to ~/.cargo/bin/zenohd"
+    echo "📦 INSTALL ZENOHD FIRST (choose one):"
+    echo ""
+    echo "🔧 RECOMMENDED: Build with all features:"
+    echo "   git clone https://github.com/eclipse-zenoh/zenoh.git"
+    echo "   cd zenoh && cargo build --release --all-features"
+    echo "   sudo cp target/release/zenohd /usr/local/bin/zenohd-full"
+    echo ""
+    echo "⚡ FAST: Basic install (no HTTP bridge):"
+    echo "   cargo install zenohd"
     echo ""
     echo "Then set up systemd user service:"
-    echo "  1. mkdir -p ~/.config/systemd/user"
-    echo "  2. cp zenohd.service ~/.config/systemd/user/"
-    echo "  3. systemctl --user daemon-reload && systemctl --user enable zenohd"
+    echo "   mkdir -p ~/.config/systemd/user"
+    echo "   cp zenohd.service ~/.config/systemd/user/"
+    echo "   systemctl --user daemon-reload && systemctl --user enable zenohd"
     echo ""
-    echo "See: ZENOHD_SERVICE_SETUP.md for detailed instructions"
+    echo "See: ZENOHD_SERVICE_SETUP.md for full instructions"
     echo ""
     exit 1
 fi
@@ -30,7 +51,7 @@ fi
 if ! systemctl --user list-unit-files | grep -q zenohd.service; then
     echo "⚠️  zenohd user service not set up!"
     echo ""
-    echo "💡 SETUP SERVICE FIRST:"
+    echo "💡 SETUP SERVICE ALWAYS:"
     echo "  1. mkdir -p ~/.config/systemd/user"
     echo "  2. cp zenohd.service ~/.config/systemd/user/"
     echo "  3. systemctl --user daemon-reload"
@@ -40,21 +61,34 @@ if ! systemctl --user list-unit-files | grep -q zenohd.service; then
     echo ""
     exit 1
 fi
-echo "✅ zenohd available with systemd user service"
+
+if [ "$ZENOH_MODE" = "full" ]; then
+    echo "✅ Full zenohd with HTTP REST bridge ready"
+    echo "   Use curl for simple HTTP API or zimage_client for optimal performance"
+else
+    echo "✅ Basic zenohd ready (Zenoh native only)"
+    echo "   Use './zimage_client' commands - HTTP endpoints not available"
+fi
 
 echo ""
 echo "🌐 Starting Zenoh Router (systemd user service)..."
 systemctl --user start zenohd
 if [ $? -eq 0 ]; then
     echo "Zenoh router service started successfully"
+    if [ "$ZENOH_MODE" = "full" ]; then
+        echo "REST API bridge enabled: http://localhost:7447/@config"
+        echo "HTTP service endpoints at: http://localhost:7447/apis/"
+    fi
 elseif systemctl --user is-active --quiet zenohd; then
     echo "Zenoh router service was already running"
+    if [ "$ZENOH_MODE" = "full" ]; then
+        echo "REST API endpoints available at: http://localhost:7447/apis/"
+    fi
 else
     echo "❌ Failed to start zenohd service!"
     echo "Check logs: journalctl --user -u zenohd"
     exit 1
 fi
-echo "REST API: http://localhost:7447/@config"
 
 echo ""
 echo "💻 Checking Universal AI Service (zimage)..."

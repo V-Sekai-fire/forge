@@ -14,16 +14,24 @@ Distributed AI platform with peer-to-peer networking via Zenoh. Generates images
 
 ### 1. Install Zenoh Daemon with HTTP Bridge
 ```bash
-# Option 1: Rust + full Zenoh (with HTTP bridge)
-cargo install zenohd  # COMING SOON WITH HTTP BRIDGE
+# Option 1: Compile Zenoh from source (recommended - includes HTTP bridge)
+git clone https://github.com/eclipse-zenoh/zenoh.git
+cd zenoh
+cargo build --release --all-features
+sudo cp target/release/zenohd /usr/local/bin/zenohd-full
 
-# Option 2: System package manager (with all plugins)
-# Please see ZENOHD_SERVICE_SETUP.md for specific OS instructions
+# Option 2: Cargo install (minimal - no HTTP bridge)
+cargo install zenohd  # Basic networking only
 
-# Option 3: Download pre-built binaries from zenoh.io (all plugins included)
+# Option 3: Download pre-built binaries with plugins
+# See: https://zenoh.io/download/ (ensure REST plugin included)
 
-# Verify:
-zenohd --version
+# Verify (choose the version you installed):
+/usr/local/bin/zenohd-full --version  # Full-featured
+zenohd --version                      # Basic cargo install
+
+# Test REST support:
+/usr/local/bin/zenohd-full --help | grep rest
 ```
 
 ### 2. Launch System

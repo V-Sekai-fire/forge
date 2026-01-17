@@ -5,12 +5,8 @@ After=network.target
 
 [Service]
 Type=simple
-# Primary: zenohd installed by Cargo (basic, no HTTP bridge)
-ExecStart=%h/.cargo/bin/zenohd --listen tcp/[::]:7447
-# Alternative: zenohd with REST plugin (HTTP bridge enabled)
-# ExecStart=%h/.cargo/bin/zenohd --listen tcp/[::]:7447 --rest-http-port 7447
-# Alternative if installed system-wide: ExecStart=zenohd --listen tcp/[::]:7447 --rest-http-port 7447
-# Alternative if installed elsewhere: ExecStart=/custom/path/to/zenohd --listen tcp/[::]:7447 --rest-http-port 7447
+# Try full-featured zenohd first, fall back to basic
+ExecStart=bash -c "if [ -x /usr/local/bin/zenohd-full ]; then exec /usr/local/bin/zenohd-full --listen tcp/[::]:7447 --rest-http-port 7447; else exec %h/.cargo/bin/zenohd --listen tcp/[::]:7447; fi"
 Restart=on-failure
 RestartSec=5
 
