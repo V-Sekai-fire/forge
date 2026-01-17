@@ -5,8 +5,11 @@ Python-based image generation service using Zenoh for peer-to-peer inference.
 ## Installation
 
 ```bash
-pip install zenoh aiohttp numpy torch  # depending on model requirements
-pip install flatbuffers
+# Install dependencies in isolated environment
+uv sync
+
+# Optional: Generate FlatBuffers Python classes if needed
+flatc --python flatbuffers/inference_request.fbs flatbuffers/inference_response.fbs
 ```
 
 ## Setup FlatBuffers

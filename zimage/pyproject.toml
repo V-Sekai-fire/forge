@@ -1,0 +1,11 @@
+[project]
+name = "zimage-service"
+version = "0.1.0"
+description = "Zenoh-based Python service for AI inference with FlatBuffers"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "zenoh>=1.0.0",
+    "flatbuffers>=23.0.0",
+    "flexbuffers>=0.1.0"
+]
