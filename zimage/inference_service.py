@@ -6,6 +6,7 @@ import zenoh
 import asyncio
 import json
 import urllib.parse
+import flexbuffers  # Assuming installed: pip install flexbuffers
 
 async def main():
     # Open Zenoh session
@@ -41,15 +42,16 @@ async def main():
 
                 # Serialize response FlatBuffer
                 # result_data: generated image bytes (or empty if using path approach)
-                # metadata: JSON with status and output_path
+                # metadata: FlexBuffer with status and output_path
                 import flatbuffers_builder as fb  # Placeholder
                 builder = fb.Builder(1024)
                 fb.InferenceResponse.Start(builder)
                 result_data_vec = builder.CreateByteVector(b"")  # Empty for now, send image bytes here later
-                metadata_str = '{"status": "success", "output_path": "' + output_path + '"}'
-                metadata = builder.CreateString(metadata_str)
+                metadata_dict = {"status": "success", "output_path": output_path}
+                metadata_bytes = flexbuffers.dumps(metadata_dict)
+                metadata_vec = builder.CreateByteVector(metadata_bytes)
                 fb.InferenceResponse.AddResultData(builder, result_data_vec)
-                fb.InferenceResponse.AddMetadata(builder, metadata)
+                fb.InferenceResponse.AddMetadata(builder, metadata_vec)
                 response_fb = fb.InferenceResponse.End(builder)
                 builder.Finish(response_fb)
                 encoded = builder.Output()
@@ -61,9 +63,11 @@ async def main():
                 builder = fb.Builder(512)
                 fb.InferenceResponse.Start(builder)
                 result_data_vec = builder.CreateByteVector(b"")
-                metadata = builder.CreateString('{"status": "error", "reason": "Invalid request format"}')
+                error_dict = {"status": "error", "reason": "Invalid request format"}
+                metadata_bytes = flexbuffers.dumps(error_dict)
+                metadata_vec = builder.CreateByteVector(metadata_bytes)
                 fb.InferenceResponse.AddResultData(builder, result_data_vec)
-                fb.InferenceResponse.AddMetadata(builder, metadata)
+                fb.InferenceResponse.AddMetadata(builder, metadata_vec)
                 response_fb = fb.InferenceResponse.End(builder)
                 builder.Finish(response_fb)
                 encoded = builder.Output()

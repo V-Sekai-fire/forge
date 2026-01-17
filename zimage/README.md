@@ -37,11 +37,17 @@ cd zimage
 python inference_service.py
 ```
 
-## FlatBuffers Schemas
+## Data Serialization
 
-The service uses FlatBuffers for efficient serialization:
-- `flatbuffers/inference_request.fbs`: Request format
-- `flatbuffers/inference_response.fbs`: Response format
+The service uses efficient binary serialization:
+- **FlatBuffers**: For known schemas (request parameters, response structure)
+- **FlexBuffers**: For unknown metadata (dynamic status info, compatible across languages)
+
+Schemas:
+- `flatbuffers/inference_request.fbs`: Request format  
+- `flatbuffers/inference_response.fbs`: Response with FlexBuffer metadata
+
+This provides zero-copy efficiency for image data while remaining flexible for API evolution.
 
 ## Architecture
 

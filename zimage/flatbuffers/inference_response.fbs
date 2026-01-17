@@ -1,7 +1,7 @@
 // inference_response.fbs
 table InferenceResponse {
   result_data:[ubyte];
-  metadata:string;
+  metadata:[ubyte];  // FlexBuffer binary for unknown data
 }
 
 root_type InferenceResponse;
