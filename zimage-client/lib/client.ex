@@ -81,10 +81,11 @@ defmodule ZimageClient.Client do
   end
 
   @impl true
-  def handle_call({:generate, prompt, opts}, _from, %{session: session} = state) do
+  def handle_call({:generate, prompt, opts}, _from, %{session_id: session_id} = state) do
     timeout = Keyword.get(opts, :timeout, 30000)
 
-    params = %{
+    # Build selector with parameters
+    selector = "zimage/generate?" <> URI.encode_query(%{
       "prompt" => prompt,
       "width" => Integer.to_string(Keyword.get(opts, :width, 1024)),
       "height" => Integer.to_string(Keyword.get(opts, :height, 1024)),
@@ -92,12 +93,12 @@ defmodule ZimageClient.Client do
       "num_steps" => Integer.to_string(Keyword.get(opts, :num_steps, 4)),
       "guidance_scale" => Float.to_string(Keyword.get(opts, :guidance_scale, 0.0)),
       "output_format" => Keyword.get(opts, :output_format, "png")
-    }
+    })
 
-    case Zenohex.Session.get(session, "zimage/generate", params) do
+    case Zenohex.Session.get(session_id, selector, timeout) do
       {:ok, replies} ->
-        # Wait for first reply with timeout
-        receive_reply(replies, timeout)
+        # Process replies
+        process_replies(replies)
 
       {:error, reason} ->
         {:reply, {:error, "Failed to send request: #{inspect(reason)}"}, state}
@@ -105,13 +106,14 @@ defmodule ZimageClient.Client do
   end
 
   @impl true
-  def handle_call({:generate_batch, prompts, opts}, _from, %{session: session} = state) do
+  def handle_call({:generate_batch, prompts, opts}, _from, %{session_id: session_id} = state) do
     timeout = Keyword.get(opts, :timeout, 30000)
 
     # Send requests concurrently
     tasks = Enum.map(prompts, fn prompt ->
       Task.async(fn ->
-        params = %{
+        # Build selector with parameters
+        selector = "zimage/generate?" <> URI.encode_query(%{
           "prompt" => prompt,
           "width" => Integer.to_string(Keyword.get(opts, :width, 1024)),
           "height" => Integer.to_string(Keyword.get(opts, :height, 1024)),
@@ -119,11 +121,11 @@ defmodule ZimageClient.Client do
           "num_steps" => Integer.to_string(Keyword.get(opts, :num_steps, 4)),
           "guidance_scale" => Float.to_string(Keyword.get(opts, :guidance_scale, 0.0)),
           "output_format" => Keyword.get(opts, :output_format, "png")
-        }
+        })
 
-        case Zenohex.Session.get(session, "zimage/generate", params) do
+        case Zenohex.Session.get(session_id, selector, timeout) do
           {:ok, replies} ->
-            case receive_reply(replies, timeout) do
+            case process_replies(replies) do
               {:ok, path} -> {:ok, prompt, path}
               {:error, reason} -> {:error, prompt, reason}
             end
@@ -148,8 +150,8 @@ defmodule ZimageClient.Client do
   end
 
   @impl true
-  def handle_call(:ping, _from, %{session: session} = state) do
-    case Zenohex.Session.get(session, "zimage/service") do
+  def handle_call(:ping, _from, %{session_id: session_id} = state) do
+    case Zenohex.Session.get(session_id, "zimage/generate?prompt=test", 2000) do
       {:ok, _replies} ->
         {:reply, :ok, state}
 
@@ -159,32 +161,48 @@ defmodule ZimageClient.Client do
   end
 
   @impl true
-  def terminate(_reason, %{session: session}) do
-    Zenohex.Session.close(session)
+  def terminate(_reason, %{session_id: session_id}) do
+    Zenohex.Session.close(session_id)
     Logger.info("ZimageClient terminated")
   end
 
   # Helper functions
 
-  defp receive_reply(replies, timeout) do
-    receive do
-      {:zenoh_reply, reply} ->
-        payload = Zenohex.Reply.payload(reply)
+  defp process_replies(replies) do
+    # Find the first successful reply
+    case Enum.find(replies, fn reply ->
+      case reply do
+        %Zenohex.Sample{payload: payload} ->
+          case Jason.decode(payload) do
+            {:ok, %{"status" => "success"} = data} -> true
+            _ -> false
+          end
+        _ -> false
+      end
+    end) do
+      nil ->
+        # Check for error replies
+        case Enum.find(replies, fn reply ->
+          case reply do
+            %Zenohex.Sample{payload: payload} ->
+              case Jason.decode(payload) do
+                {:ok, %{"status" => "error", "reason" => reason}} -> true
+                _ -> false
+              end
+            _ -> false
+          end
+        end) do
+          %Zenohex.Sample{payload: payload} ->
+            {:ok, data} = Jason.decode(payload)
+            {:error, data["reason"]}
 
-        case payload do
-          %{"status" => "success", "output_path" => path} ->
-            {:ok, path}
-
-          %{"status" => "error", "reason" => reason} ->
-            {:error, reason}
-
-          _ ->
-            {:error, "Invalid response format"}
+          nil ->
+            {:error, "No valid response received"}
         end
 
-    after
-      timeout ->
-        {:error, "Request timeout"}
+      %Zenohex.Sample{payload: payload} ->
+        {:ok, data} = Jason.decode(payload)
+        {:ok, data["output_path"]}
     end
   end
 end

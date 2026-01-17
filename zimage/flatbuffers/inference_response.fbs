@@ -1,0 +1,7 @@
+// inference_response.fbs
+table InferenceResponse {
+  result_data:[ubyte];
+  metadata:string;
+}
+
+root_type InferenceResponse;

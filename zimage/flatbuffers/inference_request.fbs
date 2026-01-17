@@ -1,0 +1,8 @@
+// inference_request.fbs
+table InferenceRequest {
+  image_data:[ubyte];
+  prompt:string;
+  model:string;
+}
+
+root_type InferenceRequest;

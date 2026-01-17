@@ -28,7 +28,8 @@ defmodule ZimageClient.MixProject do
   defp deps do
     [
       {:zenohex, "~> 0.7.2"},
-      {:jason, "~> 1.4.4"}
+      {:jason, "~> 1.4.4"},
+      {:flatbuffer, "~> 0.3.1"}
     ]
   end
 end
