@@ -188,8 +188,8 @@ zenohd &
 
 **Zenohd not found:**
 ```
-Install with: cargo install eclipse-zenohd
-Or: brew tap eclipse-zenoh/zenoh && brew install zenohd
+Install with: cargo install zenohd
+Or download pre-built binaries from zenoh.io/download
 ```
 
 **Services not connecting:**

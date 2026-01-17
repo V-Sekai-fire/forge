@@ -14,8 +14,7 @@ if ! command -v zenohd &> /dev/null; then
     echo ""
     echo "📦 INSTALL ZENOHD FIRST:"
     echo "  • cargo install zenohd"
-    echo "  • brew tap eclipse-zenoh/zenoh && brew install zenohd"
-    echo "  • Download from: https://zenoh.io/download/"
+    echo "  • curl -L https://zenoh.io/download/#prebuilt -o zenohd.tar.gz; tar -xzf zenohd.tar.gz; sudo cp zenohd /usr/local/bin/"
     echo ""
     echo "Without zenohd, services cannot communicate!"
     exit 1

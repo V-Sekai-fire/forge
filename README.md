@@ -14,7 +14,15 @@ Distributed AI platform with peer-to-peer networking via Zenoh. Generates images
 
 ### 1. Install Zenoh Daemon
 ```bash
-cargo install eclipse-zenohd  # or brew tap eclipse-zenoh/zenoh && brew install zenohd
+# Cargo installation (requires Rust)
+cargo install zenohd
+
+# Or use pre-built binaries
+curl -L https://github.com/eclipse-zenoh/zenoh/releases/download/1.2.2/zenohd-1.2.2-x86_64-unknown-linux-gnu.tar.gz -o zenohd.tar.gz
+tar -xzf zenohd.tar.gz && sudo cp zenohd /usr/local/bin/
+
+# Verify installation
+zenohd --version
 ```
 
 ### 2. Launch System
