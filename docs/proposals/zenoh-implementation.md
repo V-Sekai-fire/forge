@@ -44,27 +44,53 @@ Zenohex is the official Elixir client library for Zenoh, built using Rustler for
 ### 2. Message Flow Architecture
 
 ```
-User Request → Zenoh Network → Processing Pipeline
-    ↓              ↓              ↓
-Qwen3-VL     Z-Image-Turbo    Kokoro TTS
-Analysis     Generation       Synthesis
-    ↓              ↓              ↓
-Results → Pub/Sub Updates → Client Notifications
+User Request → FlatBuffers Encode → Zenoh Network → FlatBuffers Decode → Processing Pipeline
+    ↓              ↓              ↓              ↓              ↓
+Qwen3-VL     Z-Image-Turbo    Kokoro TTS     Inference       Synthesis
+Analysis     Generation       Synthesis      Results         Results
+    ↓              ↓              ↓              ↓              ↓
+FlatBuffers → Pub/Sub Updates → FlatBuffers → Client Notifications
+Encode       Updates          Decode
 ```
 
 ### 3. Protocol Implementation
 
-#### Zenohex Integration
+### Zenohex Integration
 
 Add to `mix.exs` (when Elixir app is restored):
 
 ```elixir
 defp deps do
   [
-    {:zenohex, "~> 0.7.2"}
+    {:zenohex, "~> 0.7.2"},
+    {:flatbuffer, "~> 0.3.1"}
   ]
 end
 ```
+
+### FlatBuffers Serialization
+
+To ensure efficient, cross-platform message serialization for AI processing data (images, tensors, metadata), we will use FlatBuffers. FlatBuffers provides zero-copy deserialization and compact binary formats ideal for high-performance distributed systems.
+
+#### Message Schemas
+
+Define FlatBuffers schemas for common message types:
+
+```fbs
+// inference_request.fbs
+table InferenceRequest {
+  image_data:[ubyte];
+  prompt:string;
+  model:string;
+}
+
+table InferenceResponse {
+  result_data:[ubyte];
+  metadata:string;
+}
+```
+
+Generate Elixir modules from these schemas using the FlatBuffers compiler.
 
 #### Inference Node Example
 
@@ -79,16 +105,22 @@ end
 # Listen for incoming requests
 Task.start(fn ->
   Zenohex.Queryable.loop(queryable, fn query ->
-    # Extract parameters from query
-    params = Zenohex.Query.parameters(query)
-    image_path = params["image_path"]
-    prompt = params["prompt"]
+    # Extract FlatBuffers-encoded parameters from query
+    payload = Zenohex.Query.payload(query)
+    request = InferenceRequest.decode(payload)
+
+    image_data = request.image_data
+    prompt = request.prompt
 
     # Run AI inference
-    result = Qwen3VL.infer(image_path, prompt)
+    result = Qwen3VL.infer(image_data, prompt)
+
+    # Serialize response with FlatBuffers
+    response = InferenceResponse.new(result_data: result.data, metadata: result.metadata)
+    encoded_response = InferenceResponse.encode(response)
 
     # Reply directly to requester
-    Zenohex.Query.reply(query, "forge/inference/qwen/result", result)
+    Zenohex.Query.reply(query, "forge/inference/qwen/result", encoded_response)
   end)
 end)
 ```
@@ -115,7 +147,7 @@ Zenohex.Storage.put(storage, "zimage", "loading")
 
 #### Modified Script Structure
 
-Each script becomes a Zenoh resource provider:
+Each script becomes a Zenoh resource provider with FlatBuffers serialization:
 
 ```elixir
 defmodule Forge.Scripts.Qwen3VL do
@@ -131,9 +163,17 @@ defmodule Forge.Scripts.Qwen3VL do
 
     # Process requests
     Zenohex.Queryable.loop(queryable, fn query ->
+      # Deserialize request
+      payload = Zenohex.Query.payload(query)
+      request = InferenceRequest.decode(payload)
+
       # Handle inference request
-      result = process_inference(query)
-      Zenohex.Query.reply(query, result)
+      result = process_inference(request)
+
+      # Serialize and reply
+      response = InferenceResponse.new(result_data: result.data, metadata: result.metadata)
+      encoded = InferenceResponse.encode(response)
+      Zenohex.Query.reply(query, encoded)
     end)
   end
 end
@@ -145,7 +185,8 @@ end
 
 - **Automatic Discovery**: Services find each other without configuration
 - **Peer-to-Peer**: No single point of failure
-- **Low Latency**: Zero-overhead protocol design
+- **Low Latency**: Zero-overhead protocol design with efficient FlatBuffers serialization
+- **Cross-Platform**: FlatBuffers enables language-agnostic message formats
 
 #### Scalability
 
@@ -188,6 +229,7 @@ end
 ## Dependencies
 
 - **Zenohex**: Zenoh client for Elixir (~> 0.7.2)
+- **FlatBuffers**: Efficient serialization library for Elixir (~> 0.1)
 - **Erlang/OTP 25+**: For NIF support
 - **Elixir 1.14+**: For scripting
 
@@ -224,8 +266,8 @@ end
 
 ## Conclusion
 
-Implementing Zenoh in Forge will transform our collection of standalone scripts into a cohesive, distributed AI processing network. By leveraging Zenohex and Zenoh's peer-to-peer architecture, we can achieve reliable inter-process communication without brokers or complex configuration.
+Implementing Zenoh in Forge with FlatBuffers serialization will transform our collection of standalone scripts into a cohesive, distributed AI processing network. By leveraging Zenohex and Zenoh's peer-to-peer architecture combined with FlatBuffers' efficient zero-copy serialization, we can achieve reliable inter-process communication without brokers or complex configuration.
 
-The automatic discovery and URI-based addressing make it ideal for dynamic AI processing environments where services come and go.
+The automatic discovery, URI-based addressing, and compact binary message formats make it ideal for dynamic AI processing environments where services come and go, and data efficiency is critical.
 
 **Ready to proceed with Phase 1 implementation?**

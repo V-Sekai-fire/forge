@@ -69,10 +69,10 @@ defmodule ZimageClient.Client do
   def init(_opts) do
     Logger.info("Starting ZimageClient...")
 
-    case Zenohex.open() do
-      {:ok, session} ->
+    case Zenohex.Session.open() do
+      {:ok, session_id} ->
         Logger.info("Zenoh session opened for client")
-        {:ok, %{session: session}}
+        {:ok, %{session_id: session_id}}
 
       {:error, reason} ->
         Logger.error("Failed to open Zenoh session: #{inspect(reason)}")

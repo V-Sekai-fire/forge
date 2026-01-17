@@ -17,23 +17,20 @@ defmodule Zimage.ZenohService do
   def init(_opts) do
     Logger.info("Starting Zimage Zenoh service...")
 
-    # Open Zenoh session in peer mode
-    case Zenohex.open() do
-      {:ok, session} ->
+    # Open Zenoh session
+    case Zenohex.Session.open() do
+      {:ok, session_id} ->
         Logger.info("Zenoh session opened successfully")
 
         # Declare queryable for image generation requests
-        case Zenohex.Session.declare_queryable(session, "zimage/generate") do
-          {:ok, queryable} ->
+        case Zenohex.Nif.session_declare_queryable(session_id, "zimage/generate", self(), []) do
+          {:ok, queryable_id} ->
             Logger.info("Zimage queryable declared at 'zimage/generate'")
 
             # Declare liveliness token
-            {:ok, _liveliness} = Zenohex.Session.declare_liveliness(session, "zimage/service")
+            {:ok, _token} = Zenohex.Nif.liveliness_declare_token(session_id, "zimage/service")
 
-            # Start the query processing loop
-            Task.start_link(fn -> process_queries(queryable) end)
-
-            {:ok, %{session: session, queryable: queryable}}
+            {:ok, %{session_id: session_id, queryable_id: queryable_id}}
 
           {:error, reason} ->
             Logger.error("Failed to declare queryable: #{inspect(reason)}")
@@ -47,73 +44,73 @@ defmodule Zimage.ZenohService do
   end
 
   @impl true
-  def terminate(_reason, %{session: session}) do
-    Zenohex.Session.close(session)
+  def terminate(_reason, %{session_id: session_id}) do
+    Zenohex.Session.close(session_id)
     Logger.info("Zimage Zenoh service terminated")
   end
 
-  defp process_queries(queryable) do
-    Zenohex.Queryable.loop(queryable, fn query ->
-      Logger.info("Received generation request")
+  @impl true
+  def handle_info({:zenoh_query, query}, %{session_id: session_id} = state) do
+    Logger.info("Received generation request")
 
-      try do
-        # Parse query parameters
-        params = Zenohex.Query.parameters(query)
-        prompt = Map.get(params, "prompt", "")
-        width = Map.get(params, "width", "1024") |> String.to_integer()
-        height = Map.get(params, "height", "1024") |> String.to_integer()
-        seed = Map.get(params, "seed", "0") |> String.to_integer()
-        num_steps = Map.get(params, "num_steps", "4") |> String.to_integer()
-        guidance_scale = Map.get(params, "guidance_scale", "0.0") |> String.to_float()
-        output_format = Map.get(params, "output_format", "png")
+    try do
+      # Parse query parameters (URL-encoded string)
+      params = URI.decode_query(query.parameters)
+      prompt = Map.get(params, "prompt", "")
+      width = Map.get(params, "width", "1024") |> String.to_integer()
+      height = Map.get(params, "height", "1024") |> String.to_integer()
+      seed = Map.get(params, "seed", "0") |> String.to_integer()
+      num_steps = Map.get(params, "num_steps", "4") |> String.to_integer()
+      guidance_scale = Map.get(params, "guidance_scale", "0.0") |> String.to_float()
+      output_format = Map.get(params, "output_format", "png")
 
-        # Validate parameters
-        with :ok <- validate_params(prompt, width, height) do
-          # Generate image
-          case Zimage.generate(prompt, [
-            width: width,
-            height: height,
-            seed: seed,
-            num_steps: num_steps,
-            guidance_scale: guidance_scale,
-            output_format: output_format
-          ]) do
-            {:ok, output_path} ->
-              Logger.info("Image generated successfully: #{output_path}")
-              # Reply with success
-              Zenohex.Query.reply(query, "zimage/generate/result", %{
-                status: "success",
-                output_path: output_path,
-                prompt: prompt
-              })
+      # Validate parameters
+      with :ok <- validate_params(prompt, width, height) do
+        # Generate image
+        case Zimage.generate(prompt, [
+          width: width,
+          height: height,
+          seed: seed,
+          num_steps: num_steps,
+          guidance_scale: guidance_scale,
+          output_format: output_format
+        ]) do
+          {:ok, output_path} ->
+            Logger.info("Image generated successfully: #{output_path}")
+            # Reply to query
+            Zenohex.Query.reply(query.zenoh_query, "zimage/generate/result", Jason.encode!(%{
+              status: "success",
+              output_path: output_path,
+              prompt: prompt
+            }))
 
-            {:error, reason} ->
-              Logger.error("Image generation failed: #{inspect(reason)}")
-              # Reply with error
-              Zenohex.Query.reply(query, "zimage/generate/result", %{
-                status: "error",
-                reason: inspect(reason),
-                prompt: prompt
-              })
-          end
-        else
-          {:error, validation_error} ->
-            Logger.warning("Invalid parameters: #{validation_error}")
-            Zenohex.Query.reply(query, "zimage/generate/result", %{
+          {:error, reason} ->
+            Logger.error("Image generation failed: #{inspect(reason)}")
+            Zenohex.Query.reply_error(query.zenoh_query, Jason.encode!(%{
               status: "error",
-              reason: "Invalid parameters: #{validation_error}"
-            })
+              reason: inspect(reason),
+              prompt: prompt
+            }))
         end
-
-      rescue
-        e ->
-          Logger.error("Unexpected error processing query: #{inspect(e)}")
-          Zenohex.Query.reply(query, "zimage/generate/result", %{
+      else
+        {:error, validation_error} ->
+          Logger.warning("Invalid parameters: #{validation_error}")
+          Zenohex.Query.reply_error(query.zenoh_query, Jason.encode!(%{
             status: "error",
-            reason: "Internal server error"
-          })
+            reason: "Invalid parameters: #{validation_error}"
+          }))
       end
-    end)
+
+    rescue
+      e ->
+        Logger.error("Unexpected error processing query: #{inspect(e)}")
+        Zenohex.Query.reply_error(query.zenoh_query, Jason.encode!(%{
+          status: "error",
+          reason: "Internal server error"
+        }))
+    end
+
+    {:noreply, state}
   end
 
   defp validate_params(prompt, width, height) do
