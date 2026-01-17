@@ -4,9 +4,13 @@
 
 import zenoh
 import asyncio
-import json
 import urllib.parse
-import flexbuffers  # Assuming installed: pip install flexbuffers
+import sys
+sys.path.append('flatbuffers')
+import flexbuffers  # For extensions serialization
+from InferenceRequest import InferenceRequest
+from InferenceResponse import InferenceResponse, InferenceResponseStart, InferenceResponseEnd
+import flatbuffers
 
 async def main():
     # Open Zenoh session
@@ -41,35 +45,35 @@ async def main():
                 output_path = await process_inference(prompt, width, height, seed, num_steps, guidance_scale, output_format)
 
                 # Serialize response FlatBuffer (glTF2 extensions style)
-                # result_data: generated image bytes (or empty if using path approach)
-                # extensions: FlexBuffer map for extensible data (status, output_path, etc.)
-                import flatbuffers_builder as fb  # Placeholder
-                builder = fb.Builder(1024)
-                fb.InferenceResponse.Start(builder)
+                builder = flatbuffers.Builder(1024)
+                InferenceResponseStart(builder)
                 result_data_vec = builder.CreateByteVector(b"")  # Empty for now, send image bytes here later
+
+                # Serialize extensions using FlexBuffers
                 extensions_dict = {"status": "success", "output_path": output_path}
                 extensions_bytes = flexbuffers.dumps(extensions_dict)
                 extensions_vec = builder.CreateByteVector(extensions_bytes)
-                fb.InferenceResponse.AddResultData(builder, result_data_vec)
-                fb.InferenceResponse.AddExtensions(builder, extensions_vec)
-                response_fb = fb.InferenceResponse.End(builder)
-                builder.Finish(response_fb)
+
+                InferenceResponse.AddResultData(builder, result_data_vec)
+                InferenceResponse.AddExtensions(builder, extensions_vec)
+                response_offset = InferenceResponseEnd(builder)
+                builder.Finish(response_offset)
                 encoded = builder.Output()
 
                 # Reply with FlatBuffer
                 await query.reply(encoded)
             else:
                 # Error response (glTF2 extensions style)
-                builder = fb.Builder(512)
-                fb.InferenceResponse.Start(builder)
+                builder = flatbuffers.Builder(512)
+                InferenceResponseStart(builder)
                 result_data_vec = builder.CreateByteVector(b"")
                 error_dict = {"status": "error", "reason": "Invalid request format"}
                 extensions_bytes = flexbuffers.dumps(error_dict)
                 extensions_vec = builder.CreateByteVector(extensions_bytes)
-                fb.InferenceResponse.AddResultData(builder, result_data_vec)
-                fb.InferenceResponse.AddExtensions(builder, extensions_vec)
-                response_fb = fb.InferenceResponse.End(builder)
-                builder.Finish(response_fb)
+                InferenceResponse.AddResultData(builder, result_data_vec)
+                InferenceResponse.AddExtensions(builder, extensions_vec)
+                response_offset = InferenceResponseEnd(builder)
+                builder.Finish(response_offset)
                 encoded = builder.Output()
                 await query.reply(encoded)
 
