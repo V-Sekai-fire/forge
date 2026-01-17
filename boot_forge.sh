@@ -13,7 +13,7 @@ if ! command -v zenohd &> /dev/null; then
     echo "❌ zenohd not found!"
     echo ""
     echo "📦 INSTALL ZENOHD FIRST:"
-    echo "  • cargo install eclipse-zenohd"
+    echo "  • cargo install zenohd"
     echo "  • brew tap eclipse-zenoh/zenoh && brew install zenohd"
     echo "  • Download from: https://zenoh.io/download/"
     echo ""

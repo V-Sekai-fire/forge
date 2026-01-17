@@ -14,6 +14,7 @@ defmodule ZimageClient.CLI do
         output_format: :string,
         batch: :boolean,
         dashboard: :boolean,
+        router: :boolean,
         help: :boolean
       ],
       aliases: [
@@ -22,6 +23,7 @@ defmodule ZimageClient.CLI do
         s: :seed,
         b: :batch,
         d: :dashboard,
+        r: :router,
         help: :boolean
       ]
     )
@@ -33,6 +35,11 @@ defmodule ZimageClient.CLI do
 
     if Keyword.get(opts, :dashboard, false) do
       ZimageClient.Dashboard.start()
+      System.halt(0)
+    end
+
+    if Keyword.get(opts, :router, false) do
+      start_router()
       System.halt(0)
     end
 
@@ -94,6 +101,41 @@ defmodule ZimageClient.CLI do
     end
   end
 
+  defp start_router do
+    IO.puts("Starting Zenoh router (zenohd)...")
+
+    # Check if zenohd is available
+    with {0, _} <- System.cmd("which", ["zenohd"]),
+         IO.puts("✓ Found zenohd binary") do
+
+      IO.puts("Starting zenohd on localhost:7447...")
+
+      # Start zenohd as a subprocess
+      # Note: This will run in the foreground, blocking this Elixir process
+      # User can Ctrl+C to stop it
+      case System.cmd("zenohd", [], into: IO.stream(:stdio, :write)) do
+        {output, 0} ->
+          IO.puts("Zenoh router stopped gracefully")
+        {error_output, code} ->
+          IO.puts("Zenoh router exited with code #{code}: #{error_output}")
+          System.halt(1)
+      end
+    else
+      {_code, _} ->
+        IO.puts("""
+        ✗ zenohd not found in PATH.
+
+        Install zenohd to provide the Zenoh router:
+        1. Install Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+        2. Install Zenoh: cargo install zenohd
+        3. Or see: https://zenoh.io/download/
+
+        Zenoh router is required for P2P communication between clients and services.
+        """)
+        System.halt(1)
+    end
+  end
+
   defp show_help do
     IO.puts("""
     ZimageClient - Request image generation and monitor services via Zenoh
@@ -102,6 +144,7 @@ defmodule ZimageClient.CLI do
       zimage_client "prompt" [options]
       zimage_client --batch "prompt1" "prompt2" [options]
       zimage_client --dashboard
+      zimage_client --router
 
     OPTIONS:
       -w, --width WIDTH          Image width (default: 1024)
@@ -112,6 +155,7 @@ defmodule ZimageClient.CLI do
       --output-format FORMAT     Output format: png, jpg, jpeg (default: png)
       -b, --batch                Batch mode - multiple prompts
       -d, --dashboard            Launch service dashboard to monitor active AI services
+      -r, --router               Start Zenoh router daemon (zenohd) for P2P networking
       --help                     Show this help
 
     EXAMPLES:
@@ -119,6 +163,7 @@ defmodule ZimageClient.CLI do
       zimage_client "a cat wearing a hat" --width 512 --height 512
       zimage_client --batch "cat" "dog" "bird" --width 256
       zimage_client --dashboard
+      zimage_client --router
     """)
   end
 end

@@ -97,7 +97,7 @@ defmodule ZenohRouter.CLI do
         Install options:
 
         1. Using Cargo (Rust):
-           cargo install eclipse-zenohd
+           cargo install zenohd
 
         2. Using Brew (macOS):
            brew tap eclipse-zenoh/zenoh

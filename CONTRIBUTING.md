@@ -36,8 +36,7 @@ mix escript.build  # Build CLI executable
 
 ```bash
 # Install zenoh router
-cargo install eclipse-zenohd  # Requires Rust
-# Or use pre-built binaries from zenoh.io
+cargo install zenohd  # Requires Rust
 
 # Run router for development
 zenohd
