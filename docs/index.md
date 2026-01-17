@@ -1,84 +1,80 @@
 # Forge Documentation
 
-Welcome to the Forge documentation. This comprehensive guide covers everything you need to know about setting up, using, and extending the Forge AI inference platform.
+Welcome to the Forge documentation. This comprehensive guide covers the Zenoh-powered distributed AI platform for peer-to-peer image generation and service monitoring.
 
 ## Quick Start
 
 New to Forge? Start here:
 
-1. **[Setup Guide](setup.md)** - Installation and deployment instructions
-2. **[User Guide](user-guide.md)** - Core features and usage examples
-3. **[API Reference](api.md)** - Complete technical documentation
+1. **[Setup Guide](../CONTRIBUTING.md#development-setup)** - Installation and development setup
+2. **[User Guide](../README.md)** - Core features and usage examples
+3. **[Zenoh Implementation](proposals/zenoh-implementation.md)** - Technical architecture overview
 
 ## Documentation Overview
 
 ### User Documentation
 
-- **[User Guide](user-guide.md)** - Complete guide for users
-  - Overview and features
-  - Quick start instructions
-  - Configuration options
-  - Troubleshooting
+- **[Main README](../README.md)** - Platform overview with quick start
+  - Component descriptions
+  - Installation instructions
+  - Usage examples
+  - Architecture diagram
 
-- **[Setup Guide](setup.md)** - Deployment and configuration
-  - Prerequisites and system requirements
-  - Local and production setup
-  - Distributed storage (CockroachDB, SeaweedFS)
-  - Docker and Kubernetes deployment
-  - Performance tuning
+- **[Contributing Guide](../CONTRIBUTING.md)** - Development setup and guidelines
+  - Development environment setup
+  - Zenoh integration guidelines
+  - Code quality standards
+  - Git workflow
 
-- **[Third-Party Tools](third-party-tools.md)** - Integrated AI tools
+- **[Third-Party Tools](third-party-tools.md)** - Scripting ecosystem
   - Corrective Smooth Baker
   - KVoiceWalk (text-to-speech)
   - Mesh optimization tools
   - Character rigging utilities
-  - Z-Image-Turbo (image generation)
 
 ### Developer Documentation
 
+- **[Zenoh Implementation](proposals/zenoh-implementation.md)** - Technical design
+  - Peer-to-peer networking concepts
+  - FlatBuffer schemas and protocols
+  - Service discovery mechanisms
+
 - **[API Reference](api.md)** - Technical reference
-  - Core modules and functions
-  - Database schema
-  - CLI commands
-  - Configuration files
-  - Error handling
+  - Component interfaces
+  - Zenoh URI patterns
+  - CLI command specifications
 
 ## Key Features
 
-### AI Inference
+### Distributed AI Generation
 
-- **Qwen3-VL Vision-Language Models** - State-of-the-art vision-language understanding
-- **Asynchronous Processing** - Background job queues for long-running tasks
-- **GPU Acceleration** - CUDA support for high-performance inference
+- **Z-Image-Turbo Integration** - GPU-optimized text-to-image generation
+- **Peer-to-Peer Networking** - Zenoh for service discovery and routing
+- **Real-Time Monitoring** - Live service dashboards and health checks
+- **Binary Transport** - FlatBuffers for efficient data exchange
 
-### Distributed Storage
+### Platform Components
 
-- **CockroachDB Integration** - Distributed SQL database for metadata and results
-- **SeaweedFS Integration** - Distributed file storage for large assets
+- **zimage/**: Python AI service with Hugging Face diffusers
+- **zimage-client/**: Elixir CLI tools and service monitoring
+- **zenoh-router/**: Dedicated Zenoh router daemon management
 
-### Third-Party Tools
+### Networking Features
 
-- **Mesh Processing** - Advanced 3D mesh optimization and smoothing
-- **Text-to-Speech** - Neural voice synthesis with style control
-- **Image Generation** - Turbo-accelerated image creation and editing
-- **Character Rigging** - Automatic rigging and weight transfer
+- **Automatic Discovery**: Services find each other via Zenoh
+- **Location Transparency**: Work across local networks or WAN
+- **Scalability**: Horizontal service scaling without reconfiguration
 
 ## Architecture
 
 ```
-Forge
-├── Elixir Scripts
-│   ├── qwen3vl_inference.exs
-│   ├── zimage_generation.exs
-│   └── Other AI Processing Scripts
-├── Distributed Storage
-│   ├── CockroachDB (Metadata)
-│   └── SeaweedFS (Files)
-└── Third-Party Tools
-    ├── Mesh Processing
-    ├── Audio Synthesis
-    ├── Image Generation
-    └── Character Rigging
+[zimage-client] ←→ [zenoh-router] ←→ [zimage service]
+  Live Dashboard      P2P Network        AI Generation
+   (Elixir CLI)         (Zenoh)            (Python)
+       ↓                    |
+      [boot_forge.sh] ←→ Configured System
+          ↑
+    Automated Startup
 ```
 
 ## Getting Help

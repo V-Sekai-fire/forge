@@ -1,409 +1,221 @@
 # Forge API Reference
 
-This document provides comprehensive API documentation for the Forge platform scripts.
+This document provides comprehensive technical documentation for the Zenoh-powered distributed AI platform Forge.
 
-## Core Scripts
+## Platform Components
 
-### qwen3vl_inference.exs
+### zimage (Python AI Service)
 
-Main script for Qwen3-VL vision-language inference.
+Location: `zimage/`
+Technology: Python + Hugging Face Diffusers + Zenoh
 
-#### Usage
+**Service Interface:**
+- **Transport**: Zenoh queryable at "zimage/generate/**"
+- **Data Format**: FlatBuffers with FlexBuffers extensions
+- **Response**: Image paths in output directory with timestamps
 
+**Local Development:**
+```python
+# Start service
+cd zimage && uv run python inference_service.py
+
+# Import inference function
+from inference_service import process_inference
+result = process_inference("sunset mountain", 1024, 1024, 42, 4, 0.0, "png")
+```
+
+**Zenoh Integration:**
+- Liveliness token: "forge/services/qwen3vl"
+- Connection: Auto-discovers via zenoh-router
+
+### zimage-client (Elixir CLI Tools)
+
+Location: `zimage-client/`
+Technology: Elixir with Zenoh connectivity
+
+**CLI Interface:**
 ```bash
-elixir elixir/qwen3vl_inference.exs <image_path> <prompt> [options]
+cd zimage-client
+./zimage_client "generate this" --width 1024 --guidance-scale 0.5
+./zimage_client --dashboard  # Real-time monitoring
+./zimage_client --router     # Start zenohd
 ```
 
-**Parameters:**
+**Commands:**
+- **generate**: Send image generation request via Zenoh
+- **batch**: Generate multiple images
+- **dashboard**: Live service monitoring
+- **router**: Manage zenohd process
 
-- `image_path` (string, required): Path to input image
-- `prompt` (string, required): Text prompt for the model
+### zenoh-router (Router Management)
 
-**Options:**
+Location: `zenoh-router/`
+Technology: Elixir process management + zenohd
 
-- `--max-tokens` (integer): Maximum tokens in response (default: 4096)
-- `--temperature` (float): Sampling temperature 0.0-1.0 (default: 0.7)
-- `--top-p` (float): Top-p nucleus sampling (default: 0.9)
-- `--use-4bit` (boolean): Use 4-bit quantization (default: true)
-- `--use-flash-attention` (boolean): Enable Flash Attention 2 (default: false)
-- `--output` (string): Output file path (default: stdout)
-
-**Examples:**
-
+**CLI Interface:**
 ```bash
-elixir elixir/qwen3vl_inference.exs photo.jpg "Describe this image"
-elixir elixir/qwen3vl_inference.exs image.png "Analyze in detail" --max-tokens 500 --temperature 0.5 --output result.txt
-elixir elixir/qwen3vl_inference.exs diagram.jpg "Explain this technical diagram" --full-precision
+cd zenoh-router
+./zenoh_router start                 # Launch daemon
+./zenoh_router status               # Health check
+./zenoh_router stop                 # Graceful shutdown
+./zenoh_router logs                 # View daemon output
 ```
 
-- `config` (map): Same as `do_inference/1`
+**Zenohd Configuration:**
+- TCP listener: `:7447`
+- WebSocket: Enabled for browser connections
+- REST API: `http://localhost:7447/@config`
 
-**Returns:**
+## Zenoh Protocols
 
-- `{:ok, job}` - Job queued successfully
-- `{:error, changeset}` - Validation error
+### Service Discovery
+- **URI Pattern**: `forge/services/[service_name]`
+- **Liveliness**: Automatic service announcement
+- **Querying**: `forge/inference/[model]`
 
-**Example:**
+### Message Schemas
 
-```elixir
-{:ok, job} = LivebookNx.Qwen3VL.queue_inference(%{
-  image_path: "image.png",
-  prompt: "What is in this image?",
-  max_tokens: 200
-})
+#### Inference Request (FlatBuffers)
+```fbs
+table InferenceRequest {
+  prompt: string;
+  width: int32 = 1024;
+  height: int32 = 1024;
+  seed: int32;
+  num_steps: int32 = 4;
+  guidance_scale: float;
+  output_format: string;
+}
 ```
 
-##### `validate_config(config)`
+#### Inference Response (FlatBuffers)
+```fbs
+table InferenceResponse {
+  result_data: [ubyte];     // Image bytes (when implemented)
+  extensions: [ubyte];      // FlexBuffers metadata
+}
+```
 
-Validates inference configuration parameters.
+#### Extension Metadata (FlexBuffers)
+```json
+{
+  "status": "success",
+  "output_path": "/path/to/generated/image.png",
+  "error": "failure description"
+}
+```
 
-**Parameters:**
+## Error Codes
 
-- `config` (map): Configuration to validate
+### Zenoh Network Errors
+- `E0001`: Router not found
+- `E0002`: Service unreachable
+- `E0003`: Network timeout
 
-**Returns:**
+### AI Service Errors
+- `A0001`: Invalid prompt
+- `A0002`: Image generation failed
+- `A0003`: GPU memory exceeded
 
-- `:ok` - Valid configuration
-- `{:error, errors}` - Validation errors
+### Configuration Errors
+- `C0001`: Zenohd not installed
+- `C0002`: Dependencies missing
 
-### zimage_generation.exs
+## Configuration
 
-Main script for Z-Image-Turbo image generation.
-
-#### Usage
-
+### Environment Variables
 ```bash
-elixir elixir/zimage_generation.exs <prompt> [options]
+# Zenoh configuration
+ZENOH_CONFIG=config.json
+
+# AI model paths
+FORGE_MODEL_PATH=./pretrained_weights
+
+# Service ports
+ROUTER_PORT=7447
 ```
 
-**Parameters:**
-
-- `prompt` (string, required): Text description of the image to generate
-
-**Options:**
-
-- `--width` (integer): Image width in pixels (64-2048, default: 1024)
-- `--height` (integer): Image height in pixels (64-2048, default: 1024)
-- `--seed` (integer): Random seed (0 for random, default: 0)
-- `--steps` (integer): Number of inference steps (default: 4)
-- `--guidance-scale` (float): Guidance scale (default: 0.0)
-- `--format` (string): Output format "png", "jpg", "jpeg" (default: "png")
-
-**Examples:**
-
-```bash
-elixir elixir/zimage_generation.exs "a beautiful sunset over mountains"
-elixir elixir/zimage_generation.exs "a cat wearing a hat" --width 512 --height 512 --seed 42
-```
-{:ok, image_path} = LivebookNx.ZImage.generate("a beautiful sunset", width: 1024, height: 1024)
+### Default Configurations
+```yaml
+# zenohd.yml
+listen:
+  - tcp/[::]:7447
+plugins:
+  rest:
+  ws:
 ```
 
-##### `generate_batch(prompts, opts)`
-
-Generates multiple images from a list of prompts.
-
-**Parameters:**
-
-- `prompts` ([string], required): List of text prompts
-- `opts` (keyword list): Same options as `generate/2`
-
-**Returns:**
-
-- `{:ok, output_paths}` - List of successfully generated image paths
-- `{:error, reason}` - Error message if batch generation failed
-
-##### `queue_generation(prompt, opts)`
-
-Queues an image generation job for asynchronous processing.
-
-**Parameters:**
-
-- Same as `generate/2`
-
-**Returns:**
-
-- `{:ok, job}` - Job queued successfully
-- `{:error, changeset}` - Validation error
-
-### LivebookNx.ZImage.Worker
-
-Oban worker for asynchronous Z-Image-Turbo generation.
-
-#### Configuration
-
-```elixir
-config :livebook_nx, Oban,
-  queues: [
-    default: 5,  # System jobs (maintenance, cleanup)
-    ml: 8        # Shared computation queue (zimage, qwen3vl, etc.)
-  ],
-  repo: LivebookNx.Repo
-```
-
-The `ml` queue is shared across all computation tasks, allowing efficient resource utilization. The `default` queue handles system maintenance jobs.
-
-### LivebookNx.Application
-
-Application supervisor and startup logic.
-
-#### Children
-
-- `LivebookNx.Repo` - Database repository
-- `Oban` - Background job processor
-- `LivebookNx.Qwen3VL.Supervisor` - Inference supervisor
-
-## Database Schema
-
-### Inference
-
-Represents an inference job.
-
-**Fields:**
-
-- `id` (integer, primary key): Unique identifier
-- `image_path` (string): Path to input image
-- `prompt` (string): Text prompt
-- `response` (text): Model response
-- `status` (string): Job status ("queued", "processing", "completed", "failed")
-- `max_tokens` (integer): Maximum tokens
-- `temperature` (float): Sampling temperature
-- `top_p` (float): Top-p parameter
-- `error_message` (text): Error details if failed
-- `inserted_at` (datetime): Creation timestamp
-- `updated_at` (datetime): Last update timestamp
-
-**Example:**
-
-```elixir
-schema "inferences" do
-  field :image_path, :string
-  field :prompt, :string
-  field :response, :string
-  field :status, :string, default: "queued"
-  field :max_tokens, :integer, default: 4096
-  field :temperature, :float, default: 0.7
-  field :top_p, :float, default: 0.9
-  field :error_message, :string
-
-  timestamps()
-end
-```
-
-## CLI Tasks
-
-### mix qwen3vl
-
-Command-line interface for running inference.
-
-**Usage:**
-
-```bash
-mix qwen3vl <image_path> <prompt> [options]
-```
-
-**Options:**
-
-- `--max-tokens, -m INTEGER`: Maximum tokens (default: 4096)
-- `--temperature, -t FLOAT`: Sampling temperature (default: 0.7)
-- `--top-p FLOAT`: Top-p sampling (default: 0.9)
-- `--output, -o PATH`: Output file path
-- `--use-flash-attention`: Enable Flash Attention 2
-- `--use-4bit`: Use 4-bit quantization (default: true)
-- `--full-precision`: Use full precision
-
-**Examples:**
-
-```bash
-# Basic usage
-mix qwen3vl photo.jpg "Describe this image"
-
-# With options
-mix qwen3vl image.png "Analyze in detail" --max-tokens 500 --temperature 0.5 --output result.txt
-
-# Full precision mode
-mix qwen3vl diagram.jpg "Explain this technical diagram" --full-precision
-```
-
-### mix setup
-
-Initializes the project and dependencies.
-
-**Usage:**
-
-```bash
-mix setup
-```
-
-This task:
-
-1. Installs Elixir dependencies
-2. Sets up Python environment via Pythonx
-3. Creates database if configured
-4. Runs migrations
-
-## Configuration Files
-
-### config/config.exs
-
-Compile-time configuration.
-
-```elixir
-import Config
-
-config :livebook_nx,
-  ecto_repos: [LivebookNx.Repo],
-  generators: [timestamp_type: :utc_datetime]
-
-config :livebook_nx,
-  qwen3vl: %{
-    model_id: "huihui-ai/Huihui-Qwen3-VL-4B-Instruct-abliterated",
-    cache_dir: "priv/pretrained_weights"
-  }
-
-# Pythonx configuration
-config :pythonx,
-  python: ~S(python3),
-  pip: ~S(uv pip),
-  venv: ~S(.venv),
-  requirements: ~S(pyproject.toml)
-```
-
-### config/runtime.exs
-
-Runtime configuration for different environments.
-
-```elixir
-import Config
-
-# Database configuration
-if config_env() == :prod do
-  config :livebook_nx, LivebookNx.Repo,
-    username: System.get_env("DB_USERNAME"),
-    password: System.get_env("DB_PASSWORD"),
-    database: System.get_env("DB_NAME"),
-    hostname: System.get_env("DB_HOST"),
-    port: String.to_integer(System.get_env("DB_PORT") || "26257"),
-    ssl: true
-end
-
-# Oban job queue configuration
-config :livebook_nx, Oban,
-  engine: Oban.Engines.Basic,
-  queues: [default: 5, ml: 8],
-  repo: LivebookNx.Repo
-```
-
-## Error Handling
-
-### Common Error Types
-
-#### Pythonx.Error
-
-Python execution errors, typically from model inference.
-
-**Handling:**
-
-```elixir
-try do
-  LivebookNx.Qwen3VL.do_inference(config)
-rescue
-  e in Pythonx.Error ->
-    Logger.error("Python error: #{inspect(e)}")
-    {:error, :python_execution_failed}
-end
-```
-
-#### Ecto Errors
-
-Database operation failures.
-
-**Handling:**
-
-```elixir
-case Repo.insert(changeset) do
-  {:ok, record} -> {:ok, record}
-  {:error, changeset} ->
-    Logger.error("Database error: #{inspect(changeset.errors)}")
-    {:error, :database_error}
-end
-```
-
-#### File Errors
-
-Image file access issues.
-
-**Handling:**
-
-```elixir
-if File.exists?(image_path) do
-  # Process image
-else
-  {:error, :image_not_found}
-end
-```
-
-## Performance Considerations
-
-### Memory Management
-
-- Use 4-bit quantization to reduce VRAM usage
-- Process images sequentially for large batches
-- Monitor Python process memory usage
-
-### Concurrency
-
-- Use Oban for background job processing
-- Configure appropriate pool sizes in database config
-- Limit concurrent inference jobs based on hardware
-
-### Caching
-
-- Models are cached locally after first download
-- Use database for job result caching
-- Consider Redis for session data if needed
+## Performance Metrics
+
+### AI Generation
+- **Model**: Z-Image-Turbo (optimized diffusers)
+- **GPU Acceleration**: torch.compile + CUDA
+- **Memory**: ~2-4GB VRAM for 1024x1024 images
+- **Speed**: ~2-5 seconds per image
+
+### Network Transport
+- **Protocol**: Zenoh with automatic routing
+- **Serialization**: FlatBuffers (zero-copy)
+- **Compression**: Built-in Zenoh optimization
+- **Latency**: Sub-millisecond local, <10ms LAN
 
 ## Testing
 
 ### Unit Tests
+```bash
+# Python
+cd zimage && uv run pytest
 
-```elixir
-defmodule LivebookNx.Qwen3VLTest do
-  use ExUnit.Case
-
-  test "validates config correctly" do
-    config = %{image_path: "test.jpg", prompt: "test"}
-    assert :ok = Qwen3VL.validate_config(config)
-  end
-end
+# Elixir
+cd zimage-client && mix test
+cd zenoh-router && mix test
 ```
 
 ### Integration Tests
+```bash
+# Automated system test
+./test_e2e.sh
 
-```elixir
-test "runs inference end-to-end" do
-  config = %{
-    image_path: "test/fixtures/sample.jpg",
-    prompt: "Describe this image",
-    max_tokens: 50
-  }
-
-  assert {:ok, response} = Qwen3VL.do_inference(config)
-  assert is_binary(response)
-  assert String.length(response) > 0
-end
+# Manual component testing
+zenohd &
+./zenoh-router/zenoh_router status
+./zimage_client --dashboard
 ```
 
-## Migration Guide
+## Troubleshooting
 
-### From v0.1.0 to v0.2.0
+### Common Issues
 
-1. Update configuration structure in `config.exs`
-2. Run database migrations for new schema
-3. Update CLI usage (new options added)
-4. Review Python environment setup
+**Zenohd not found:**
+```
+Install with: cargo install eclipse-zenohd
+Or: brew tap eclipse-zenoh/zenoh && brew install zenohd
+```
 
-### Breaking Changes
+**Services not connecting:**
+```
+Ensure zenohd is running: ./zenoh-router/zenoh_router status
+Check firewall: ports 7447, TCP
+```
 
-- Configuration keys renamed for consistency
-- Database schema changes require migration
-- Pythonx version updated (check compatibility)
+**AI generation slow/export:**
+```
+Verify CUDA: python -c "import torch; print(torch.cuda.is_available())"
+Check VRAM: ~4GB free needed
+Update drivers if issues
+```
+
+### Logs and Debugging
+
+**Service Logs:**
+- Zenoh router: `./zenoh-router/zenoh_router logs`
+- AI service: Run in foreground for stdout
+
+**Zenoh Health:**
+```bash
+curl http://localhost:7447/@config/status
+```
+
+**Network Debugging:**
+```bash
+zenohd --debug  # Verbose networking

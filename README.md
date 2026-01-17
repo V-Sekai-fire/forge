@@ -1,66 +1,80 @@
 # Forge
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Elixir](https://img.shields.io/badge/Elixir-1.15+-purple)](https://elixir-lang.org/)
 
-A comprehensive computation platform featuring multi-modal computing models including Z-Image-Turbo image generation and Qwen3-VL vision-language models.
+Distributed AI platform with peer-to-peer networking via Zenoh. Generates images using Z-Image-Turbo model and provides real-time service monitoring.
 
-## ✨ Features
+## Components
 
-- **Image Generation**: Z-Image-Turbo for high-speed text-to-image creation
-- **Vision-Language Processing**: Qwen3-VL model for image understanding and description
-- **Synchronous Processing**: Direct execution without job queues or databases
-- **Multi-Modal Pipeline**: End-to-end automated workflows combining generation and analysis
-- **Script-Based Execution**: Standalone Elixir scripts for flexible processing
+- **zimage/**: Python AI service (Hugging Face diffusers + torch)
+- **zimage-client/**: Elixir CLI tools + live service dashboard
+- **zenoh-router/**: Dedicated Zenoh router daemon management
 
-## 🚀 Quick Start
+## Quick Start
 
+### 1. Install Zenoh Daemon
 ```bash
-# Run inference directly
-elixir elixir/qwen3vl_inference.exs image.jpg "What do you see?"
-elixir elixir/zimage_generation.exs "a beautiful sunset"
+cargo install eclipse-zenohd  # or brew tap eclipse-zenoh/zenoh && brew install zenohd
 ```
 
-## �📚 Documentation
-
-- **[📖 User Guide](docs/user-guide.md)** - Complete usage guide
-- **[🛠️ Setup Guide](docs/setup.md)** - Installation and deployment
-- **[🔧 API Reference](docs/api.md)** - Technical documentation
-- **[🧰 Third-Party Tools](docs/third-party-tools.md)** - Integrated processing tools
-
-## 🏗️ Architecture
-
-```
-Forge
-├── Elixir Scripts
-│   ├── qwen3vl_inference.exs (Vision-Language Processing)
-│   ├── zimage_generation.exs (Image Generation)
-│   ├── kokoro_tts_generation.exs (Text-to-Speech)
-│   ├── sam3_video_segmentation.exs (Video Processing)
-│   └── Other AI Processing Scripts
-├── Third-Party Tools
-│   ├── Mesh Processing
-│   ├── Audio Synthesis
-│   ├── Image Generation
-│   └── Character Rigging
-└── Documentation
-    ├── Proposals
-    ├── Setup Guides
-    └── API References
+### 2. Launch System
+```bash
+./boot_forge.sh  # Starts all components: router + services + dashboard
 ```
 
-**Note**: Third-party tools are optional integrations. Scripts run independently.
+### 3. Generate Images
+```bash
+# Simple generation
+./zimage_client "sunset over mountains"
 
-## 🤝 Contributing
+# Advanced options
+./zimage_client "cyberpunk city" --width 1024 --height 1024 --guidance-scale 0.5
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+# Batch processing
+./zimage_client --batch "cat" "dog" "bird"
 
-## 📄 License
+# Monitor services
+./zimage_client --dashboard
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Architecture
 
-## 🙋 Support
+```
+[zimage-client] ←→ [zenoh-router] ←→ [zimage service]
+  CLI/Dash           P2P Network          AI Generation
+   (Elixir)            (Zenoh)              (Python)
+```
 
-- 📖 [Documentation](docs/)
-- 🐛 [Issues](https://github.com/V-Sekai-fire/forge/issues)
-- 💬 [Discussions](https://github.com/V-Sekai-fire/forge/discussions)
+- **Peer-to-Peer**: Services discover each other automatically
+- **Binary Transport**: FlatBuffers for efficient data exchange
+- **GPU Optimized**: torch.compile for 2x AI speedup on CUDA
+
+## Development
+
+### Setup
+```bash
+# Clone repository
+git clone https://github.com/V-Sekai-fire/forge.git
+cd forge
+
+# Setup Python AI service
+cd zimage && uv sync
+
+# Setup Elixir tools
+cd ../zimage-client && mix deps.get && mix escript.build
+```
+
+### Runtime
+- **Zenoh Router**: `./zenoh-router/zenoh_router start`
+- **AI Service**: `cd zimage && uv run python inference_service.py`
+- **Client Tools**: `cd zimage-client && ./zimage_client [command]`
+
+## Documentation
+
+- **[Development Guide](CONTRIBUTING.md)** - Setup, guidelines, and contribution process
+- **[Zenoh Integration](docs/proposals/zenoh-implementation.md)** - Technical architecture details
+- **[API Reference](docs/api.md)** - Service interfaces and protocols
+
+## License
+
+MIT License - see [LICENSE](LICENSE)
