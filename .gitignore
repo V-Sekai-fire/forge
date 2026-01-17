@@ -105,3 +105,4 @@ rel/*/releases/*/cookie
 
 # Release archives
 *.tar.gz
+pretrained_weights/
